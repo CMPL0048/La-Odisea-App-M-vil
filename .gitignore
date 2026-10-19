@@ -1,0 +1,19 @@
+# Gradle / Android Studio
+.gradle/
+build/
+/captures
+.externalNativeBuild/
+.cxx/
+*.iml
+.idea/
+.kotlin/
+
+# Secretos locales (URL y llave de Supabase, ruta del SDK)
+local.properties
+
+# Varios
+.DS_Store
+*.apk
+*.aab
+*.keystore
+*.jks
