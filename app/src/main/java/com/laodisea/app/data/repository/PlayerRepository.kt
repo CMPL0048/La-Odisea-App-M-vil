@@ -89,11 +89,14 @@ class PlayerRepository @Inject constructor(
     suspend fun refreshHome(): HomeData = coroutineScope {
         val snapshot = async { fetchSnapshot() }
         val minigames = async { fetchMinigames() }
-        val news = async { runCatching { fetchLatestNews() }.getOrNull() }
+        val news = async { runCatching { fetchNews() }.getOrNull() }
+        // Si fallan solo las noticias se conservan las que ya estaban guardadas.
+        val newsList = news.await() ?: cache.read()?.news.orEmpty()
         val data = HomeData(
             snapshot = snapshot.await(),
             minigames = minigames.await(),
-            latestNews = news.await(),
+            latestNews = newsList.firstOrNull(),
+            news = newsList,
             fetchedAt = System.currentTimeMillis(),
         )
         val owner = auth.currentUserId ?: data.snapshot.player?.id
@@ -147,17 +150,18 @@ class PlayerRepository @Inject constructor(
         }.awaitAll()
     }
 
-    private suspend fun fetchLatestNews(): CampusNews? =
+    private suspend fun fetchNews(): List<CampusNews> =
         supabase.postgrest.from(SCHEMA_APP, "campus_news")
             .select {
                 order("published_at", Order.DESCENDING)
-                limit(1)
+                order("id", Order.DESCENDING)
+                limit(NEWS_LIMIT)
             }
             .decodeList<CampusNews>()
-            .firstOrNull()
 
     private companion object {
         const val SCHEMA_APP = "app"
+        const val NEWS_LIMIT = 50L
         const val FN_SNAPSHOT = "get_player_snapshot"
         const val FN_MINIGAME_STATE = "get_minigame_state"
     }

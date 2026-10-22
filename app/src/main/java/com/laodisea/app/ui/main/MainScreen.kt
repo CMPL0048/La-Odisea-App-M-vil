@@ -30,6 +30,7 @@ import com.laodisea.app.ui.minigames.RewardScreen
 import com.laodisea.app.ui.minigames.SalvaScreen
 import com.laodisea.app.ui.minigames.VicenteScreen
 import com.laodisea.app.ui.more.MoreScreen
+import com.laodisea.app.ui.news.NewsScreen
 import com.laodisea.app.ui.settings.SettingsScreen
 import com.laodisea.app.ui.stats.StatsScreen
 import kotlinx.serialization.Serializable
@@ -45,6 +46,7 @@ import kotlin.reflect.KClass
 @Serializable data object HomeRoute
 @Serializable data object StatsRoute
 @Serializable data object MinigamesRoute
+@Serializable data object NewsRoute
 @Serializable data object SalvaRoute
 @Serializable data object VicenteRoute
 @Serializable data class RewardRoute(val code: String, val success: Boolean, val coinsDelta: Long, val itemCode: String? = null)
@@ -106,8 +108,10 @@ fun MainScreen(onSignedOut: () -> Unit) {
                     HomeScreen(
                         onOpenStats = { navController.navigate(StatsRoute) },
                         onOpenMinigames = { navController.navigate(MinigamesRoute) },
+                        onOpenNews = { navController.navigate(NewsRoute) },
                     )
                 }
+                composable<NewsRoute> { NewsScreen(onBack = back) }
                 composable<StatsRoute> { StatsScreen(onBack = back) }
                 composable<MinigamesRoute> {
                     MinigamesScreen(onBack = back, onPlay = { code -> navController.navigate(minigameRoute(code)) })
