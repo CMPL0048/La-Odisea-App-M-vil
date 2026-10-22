@@ -68,6 +68,7 @@ import com.laodisea.app.ui.util.Formats
 fun HomeScreen(
     onOpenStats: () -> Unit,
     onOpenMinigames: () -> Unit,
+    onOpenNews: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -93,7 +94,7 @@ fun HomeScreen(
         ) {
             val data = state.data
             when {
-                data != null -> HomeContent(data, state, onOpenStats, onOpenMinigames)
+                data != null -> HomeContent(data, state, onOpenStats, onOpenMinigames, onOpenNews)
                 state.refreshing -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -104,7 +105,13 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeContent(data: HomeData, state: HomeUiState, onOpenStats: () -> Unit, onOpenMinigames: () -> Unit) {
+private fun HomeContent(
+    data: HomeData,
+    state: HomeUiState,
+    onOpenStats: () -> Unit,
+    onOpenMinigames: () -> Unit,
+    onOpenNews: () -> Unit,
+) {
     val snapshot = data.snapshot
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -117,7 +124,7 @@ private fun HomeContent(data: HomeData, state: HomeUiState, onOpenStats: () -> U
         item { ZoneCard(snapshot) }
         item { JuanmaCard(JuanmaTips.forHome(data)) }
         item { MinigamesCard(data.minigames, onOpenMinigames) }
-        item { NewsCard(data.latestNews) }
+        item { NewsCard(data.latestNews, onOpenNews) }
     }
 }
 
@@ -257,8 +264,12 @@ private fun MinigameRow(game: MinigameStatus) {
 }
 
 @Composable
-private fun NewsCard(news: CampusNews?) {
-    OdiseaCard(title = "Última noticia", icon = Icons.Outlined.Newspaper) {
+private fun NewsCard(news: CampusNews?, onOpenNews: () -> Unit) {
+    OdiseaCard(
+        title = "Última noticia",
+        icon = Icons.Outlined.Newspaper,
+        trailing = { TextButton(onClick = onOpenNews) { Text("Ver todas") } },
+    ) {
         if (news == null) {
             Text(
                 "Aún no hay noticias del campus.",

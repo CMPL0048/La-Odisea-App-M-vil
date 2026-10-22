@@ -9,6 +9,8 @@ data class HomeData(
     val snapshot: PlayerSnapshot,
     val minigames: List<MinigameStatus> = emptyList(),
     val latestNews: CampusNews? = null,
+    /** Noticias del campus, de la más reciente a la más antigua (las últimas 50). */
+    val news: List<CampusNews> = emptyList(),
     /** Momento (epoch ms) en que se descargó del servidor. */
     val fetchedAt: Long = 0,
 )
