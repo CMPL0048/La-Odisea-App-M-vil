@@ -55,6 +55,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             ResetPasswordScreen(
                 onSignedIn = { navController.replaceAll(MainRoute) },
                 onBack = { navController.popBackStack() },
+                onSignedOut = { navController.replaceAll(LoginRoute) },
             )
         }
         composable<MainRoute> {

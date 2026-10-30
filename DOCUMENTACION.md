@@ -173,6 +173,8 @@ tools/proposals/              # Cambios de servidor propuestos (sin aplicar)
      confirmación. La app valida el código con `verifyEmailOtp(type = RECOVERY)`, que abre la sesión,
      y después cambia la contraseña con `updateUser`. Si el cambio falla, al reintentar no se vuelve a
      validar el código (ya se usó). «Reenviar código» se habilita tras 60 s.
+     Si con el código ya validado el jugador regresa, se cierra esa sesión (como «Cerrar sesión»)
+     y vuelve al inicio de sesión; por eso «Cambiar de correo» se oculta en ese momento.
   3. Al terminar entra a la pantalla principal igual que un inicio de sesión normal (incluida la
      limpieza de caché si es otra cuenta).
   - Errores en español: código inválido o caducado, «Espera un momento antes de pedir otro código»

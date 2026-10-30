@@ -1,5 +1,6 @@
 package com.laodisea.app.ui.auth
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -16,10 +17,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun ResetPasswordScreen(
     onSignedIn: () -> Unit,
     onBack: () -> Unit,
+    /** Se regresó después de validar el código; la sesión ya se cerró. */
+    onSignedOut: () -> Unit,
     viewModel: ResetPasswordViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.signedIn) { if (state.signedIn) onSignedIn() }
+    LaunchedEffect(state.signedOut) { if (state.signedOut) onSignedOut() }
+    // Con el código validado ya hay sesión: regresar la cierra en vez de solo volver atrás.
+    BackHandler(enabled = state.verified) { if (!state.loading) viewModel.abandon() }
 
     AuthLayout(
         title = "Nueva contraseña",
@@ -59,8 +65,10 @@ fun ResetPasswordScreen(
         TextButton(onClick = viewModel::resend, enabled = state.canResend, modifier = Modifier.fillMaxWidth()) {
             Text(if (state.resendSeconds > 0) "Reenviar código (${state.resendSeconds} s)" else "Reenviar código")
         }
-        TextButton(onClick = onBack, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
-            Text("Cambiar de correo")
+        if (!state.verified) {
+            TextButton(onClick = onBack, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
+                Text("Cambiar de correo")
+            }
         }
     }
 }

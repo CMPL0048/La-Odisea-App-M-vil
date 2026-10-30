@@ -86,6 +86,8 @@ data class ResetPasswordUiState(
     /** El código ya se validó (hay sesión); si falla el cambio de contraseña no se vuelve a validar. */
     val verified: Boolean = false,
     val signedIn: Boolean = false,
+    /** Se abandonó la recuperación después de validar el código y ya se cerró esa sesión. */
+    val signedOut: Boolean = false,
 ) {
     val canSubmit: Boolean
         get() = code.isNotEmpty() && password.isNotEmpty() && confirmPassword.isNotEmpty() && !loading
@@ -150,6 +152,18 @@ class ResetPasswordViewModel @Inject constructor(
             }
                 .onSuccess { _state.update { it.copy(loading = false, signedIn = true) } }
                 .onFailure { e -> _state.update { it.copy(loading = false, error = e.toUserMessage()) } }
+        }
+    }
+
+    /**
+     * El código ya abrió una sesión pero el jugador se va sin cambiar la contraseña: se cierra esa
+     * sesión igual que «Cerrar sesión», para no dejarlo dentro a medias.
+     */
+    fun abandon() {
+        _state.update { it.copy(loading = true, error = null) }
+        viewModelScope.launch {
+            auth.signOut()
+            _state.update { it.copy(loading = false, signedOut = true) }
         }
     }
 
