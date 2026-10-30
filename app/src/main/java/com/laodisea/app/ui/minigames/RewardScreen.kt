@@ -85,6 +85,7 @@ fun RewardScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center,
             )
+            state.home?.activeSaveName?.let { PrizesFor(it) }
             OdiseaCard {
                 if (coinsDelta != 0L) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -100,7 +101,7 @@ fun RewardScreen(
                         Text(itemName, style = MaterialTheme.typography.titleMedium)
                     }
                     Text(
-                        "Llegará a tu mochila la próxima vez que abras el juego en la PC.",
+                        "Llegará a tu partida la próxima vez que se sincronice el juego.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

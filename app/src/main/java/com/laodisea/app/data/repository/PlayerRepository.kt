@@ -12,7 +12,9 @@ import com.laodisea.app.data.model.MinigameState
 import com.laodisea.app.data.model.MinigameStatus
 import com.laodisea.app.data.model.PlayerProfile
 import com.laodisea.app.data.model.PlayerSnapshot
+import com.laodisea.app.data.model.SaveSummary
 import com.laodisea.app.data.model.Zone
+import com.laodisea.app.data.isMissingFunction
 import com.laodisea.app.data.toUserMessage
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import javax.inject.Inject
@@ -57,6 +60,9 @@ class PlayerRepository @Inject constructor(
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
 
     private val syncMutex = Mutex()
+
+    /** Se apaga sola si el servidor no tiene aún las funciones de partidas vinculadas. */
+    @Volatile private var useActiveSnapshot = USE_ACTIVE_SNAPSHOT
 
     /**
      * Descarga la foto del jugador y los catálogos y los guarda. Si ya hay una sincronización en
@@ -93,7 +99,8 @@ class PlayerRepository @Inject constructor(
         val minigames = async { fetchMinigames() }
         val news = async { runCatching { fetchNews() }.getOrNull() }
         val profile = async { runCatching { fetchProfile() }.getOrNull() }
-        // Si fallan solo las noticias o el perfil se conserva lo que ya estaba guardado.
+        val saves = async { runCatching { fetchSaves() }.getOrNull() }
+        // Si fallan solo las noticias, el perfil o las partidas se conserva lo que ya estaba guardado.
         val newsList = news.await() ?: cache.read()?.news.orEmpty()
         val data = HomeData(
             snapshot = snapshot.await(),
@@ -102,6 +109,7 @@ class PlayerRepository @Inject constructor(
             news = newsList,
             fetchedAt = System.currentTimeMillis(),
             profile = profile.await() ?: cache.read()?.profile,
+            saves = saves.await() ?: cache.read()?.saves.orEmpty(),
         )
         val owner = auth.currentUserId ?: data.snapshot.player?.id
         if (owner != null) cache.save(owner, data)
@@ -121,8 +129,35 @@ class PlayerRepository @Inject constructor(
         data
     }
 
-    private suspend fun fetchSnapshot(): PlayerSnapshot =
-        supabase.postgrest.rpc(FN_SNAPSHOT).decodeAs<PlayerSnapshot>()
+    /**
+     * Foto de la partida activa. Si el servidor todavía no tiene `app.get_active_snapshot`
+     * (migración 08 sin aplicar), cae a `public.get_player_snapshot` y ya no lo vuelve a intentar.
+     */
+    private suspend fun fetchSnapshot(): PlayerSnapshot {
+        if (useActiveSnapshot) {
+            try {
+                return appRpc(FN_ACTIVE_SNAPSHOT).decodeAs<PlayerSnapshot>()
+            } catch (e: Exception) {
+                if (!e.isMissingFunction()) throw e
+                useActiveSnapshot = false
+            }
+        }
+        return supabase.postgrest.rpc(FN_SNAPSHOT).decodeAs<PlayerSnapshot>()
+    }
+
+    /** Partidas de la cuenta; lista vacía si el servidor aún no tiene la función. */
+    private suspend fun fetchSaves(): List<SaveSummary> {
+        if (!useActiveSnapshot) return emptyList()
+        return try {
+            appRpc(FN_LIST_SAVES).decodeAs<List<SaveSummary>>()
+        } catch (e: Exception) {
+            if (!e.isMissingFunction()) throw e
+            emptyList()
+        }
+    }
+
+    private suspend fun appRpc(function: String) =
+        supabase.postgrest.rpc(function, JsonObject(emptyMap())) { schema = SCHEMA_APP }
 
     // get_player_snapshot no trae avatar_url, así que el perfil se lee de la fila propia de players.
     private suspend fun fetchProfile(): PlayerProfile? {
@@ -167,6 +202,11 @@ class PlayerRepository @Inject constructor(
         const val TABLE_PLAYERS = "players"
         const val NEWS_LIMIT = 50L
         const val FN_SNAPSHOT = "get_player_snapshot"
+        const val FN_ACTIVE_SNAPSHOT = "get_active_snapshot"
+        const val FN_LIST_SAVES = "list_my_saves"
+
+        /** Poner en false para usar siempre get_player_snapshot (sin partidas vinculadas). */
+        const val USE_ACTIVE_SNAPSHOT = true
         const val FN_MINIGAME_STATE = "get_minigame_state"
     }
 }

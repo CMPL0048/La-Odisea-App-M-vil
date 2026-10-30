@@ -3,9 +3,13 @@ package com.laodisea.app.data.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/** Respuesta de la RPC public.get_player_snapshot(). */
+/**
+ * Respuesta de `app.get_active_snapshot()` (la partida activa) o, si el servidor aún no la
+ * tiene, de `public.get_player_snapshot()`, que no trae [save].
+ */
 @Serializable
 data class PlayerSnapshot(
+    val save: ActiveSave? = null,
     val player: Player? = null,
     val stats: PlayerStats? = null,
     val coins: Long = 0,

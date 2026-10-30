@@ -42,6 +42,20 @@ object Formats {
         return if (hours > 0) "en $hours h $minutes min" else "en $minutes min"
     }
 
+    /** «hace un momento», «hace 25 min», «hace 3 h», «hace 2 días» o, si pasó más de una semana, la fecha. */
+    fun timeAgo(isoInstant: String?, now: Instant = Instant.now()): String? {
+        val then = parse(isoInstant) ?: return null
+        val elapsed = Duration.between(then.toInstant(), now)
+        return when {
+            elapsed.toMinutes() < 1 -> "hace un momento"
+            elapsed.toHours() < 1 -> "hace ${elapsed.toMinutes()} min"
+            elapsed.toDays() < 1 -> "hace ${elapsed.toHours()} h"
+            elapsed.toDays() == 1L -> "hace 1 día"
+            elapsed.toDays() < 7 -> "hace ${elapsed.toDays()} días"
+            else -> "el " + then.atZoneSameInstant(ZoneId.systemDefault()).format(dateFormat)
+        }
+    }
+
     fun date(isoInstant: String): String =
         parse(isoInstant)?.atZoneSameInstant(ZoneId.systemDefault())?.format(dateFormat) ?: isoInstant
 

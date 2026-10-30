@@ -35,7 +35,8 @@ del campus y jugar dos minijuegos que dan monedas y objetos que después aparece
 | **Mapa** | Campus recorridos, el actual y los que faltan. Solo se ve si el jugador tiene el objeto **Mapa**. |
 | **Mochila** | Objetos que lleva el jugador, con su detalle, y el **Muestrario** con todos los objetos del juego. |
 | **Bestiario** | Personajes descubiertos (protagonistas, aliados y jefes). Los secretos solo aparecen al desbloquearse. |
-| **Más** | Perfil (avatar, nombre de jugador y correo), ajustes (tema claro u oscuro), estadísticas y cerrar sesión. |
+| **Más** | Perfil (avatar, nombre de jugador, correo y **Mis partidas**), ajustes (tema claro u oscuro), estadísticas y cerrar sesión. |
+| **Mis partidas** | Hasta 5 partidas por cuenta: la principal y las del juego de PC jugadas sin cuenta y vinculadas con un QR. La **activa** es la que se ve en toda la app y la que recibe los premios. |
 | **Minijuegos** | *Despierta a Salva* y *Negocia con Vicente*: dan monedas y objetos. |
 | **Noticias** | Avisos del campus, de la más reciente a la más antigua. |
 
@@ -111,6 +112,7 @@ La app sigue tres capas. Cada una solo conoce a la de abajo:
   - `AuthRepository`: inicio de sesión, registro, recuperación de contraseña, restauración y cierre de sesión.
   - `PlayerRepository`: descarga la foto del jugador, su perfil (nombre y avatar), los minijuegos, las noticias y los catálogos, y los guarda.
   - `ProfileRepository`: cambia el nombre de jugador y el avatar (precargado, foto propia o ninguno) y sube la foto a Storage.
+  - `SavesRepository`: vincula, activa, renombra y desvincula partidas del juego de PC.
   - `MinigameRepository`: llama a las funciones de los minijuegos.
   - `SettingsRepository`: preferencias del dispositivo (tema).
 - **Dominio** (`domain`): funciones puras que combinan la foto del jugador con los catálogos para
@@ -209,7 +211,9 @@ La app funciona con el principio **«primero lo guardado, luego lo nuevo»**:
 
 | Dato | Origen en Supabase |
 |---|---|
-| Foto del jugador (stats, monedas, zonas, mochila, bestiario, recompensas pendientes) | `public.get_player_snapshot()` |
+| Foto de la **partida activa** (stats, monedas, zonas, mochila, bestiario, recompensas pendientes y `save`) | `app.get_active_snapshot()`; si el servidor aún no la tiene, `public.get_player_snapshot()` |
+| Partidas de la cuenta (principal y vinculadas) | `app.list_my_saves()` |
+| Nombre y avatar | tabla `public.players` (fila propia) |
 | Minijuegos y sus intentos restantes | tabla `app.minigames` + `app.get_minigame_state(p_code)` |
 | Noticias del campus (las últimas 50) | tabla `app.campus_news` ordenada por `published_at` desc |
 | Catálogos: objetos, personajes, zonas | tablas `items`, `characters`, `zones` |
@@ -220,7 +224,12 @@ Detalles importantes:
 - El estado de la sincronización (`SyncStatus`: cargando, sin conexión o error) se comparte entre todas las pantallas.
 - **Sin conexión**: aparece el aviso «Sin conexión. Datos guardados hace…» y se sigue mostrando la caché.
 - **Error del servidor con datos guardados**: aparece un aviso rojo con el mensaje y la pantalla sigue usable.
-- Si **solo fallan las noticias**, se conservan las que ya estaban guardadas.
+- Si **solo fallan las noticias, el perfil o la lista de partidas**, se conserva lo que ya estaba guardado.
+- **Cambiar de partida** (activar, vincular o desvincular) marca la foto guardada como vieja y
+  sincroniza de inmediato, para no mostrar datos de otra partida.
+- **Sin la migración 08 en el servidor**: si `app.get_active_snapshot` no existe, la app usa
+  `public.get_player_snapshot` y ya no lo vuelve a intentar mientras siga abierta. Si
+  `list_my_saves` tampoco existe, no se muestra nada de partidas.
 - Las pantallas de lectura solo vuelven a descargar si lo guardado tiene **más de 1 minuto**.
   En cualquier pantalla se puede **deslizar hacia abajo** para forzar la actualización.
 - Después de cada partida de minijuego se sincroniza otra vez para ver monedas e intentos al día.
@@ -263,7 +272,8 @@ Más ──► Perfil
 ```
 
 Tocar el avatar de la barra superior de **Inicio** cambia a la pestaña **Más** y abre **Perfil**
-(la barra inferior marca Más).
+(la barra inferior marca Más). En **Inicio**, el chip con el nombre de la partida activa abre una
+hoja para cambiar de partida, sin salir de Inicio.
 
 Al terminar una partida, el juego se reemplaza por la pantalla de **Recompensa**; «atrás» regresa a la lista de minijuegos.
 
@@ -290,7 +300,8 @@ contraseña entra directo a la pantalla principal.
 ### Inicio
 Arriba, la barra con el nombre del jugador, su nivel, su avatar y sus monedas. Debajo, tarjetas:
 - **Tus stats**: barras de vida y resistencia, nivel, XP, enemigos derrotados y tiempo jugado. «Ver todo» abre Estadísticas.
-- **Zona actual**: nombre del campus, subnivel y barra de progreso total de la odisea.
+- **Zona actual**: nombre del campus, subnivel y barra de progreso total de la odisea. Arriba a la
+  derecha, un chip con la **partida activa**: al tocarlo se abre una hoja para elegir otra.
 - **Consejo de Juanma**: un consejo que cambia según la situación del jugador.
 - **Minijuegos**: intentos restantes de cada uno y cuándo se recargan. «Jugar» abre la lista.
 - **Última noticia**: la noticia más reciente. «Ver todas» abre Noticias del campus.
@@ -339,6 +350,20 @@ Tarjeta de la cuenta (avatar, nombre y correo) que abre **Perfil**, acceso a **A
   - **Quitar foto** (solo si hay foto propia): vuelve al avatar de Víctor.
 - **Nombre de jugador**: mínimo 3 letras y máximo 24. Se guarda en el servidor y se ve también en el juego de PC.
 - **Correo**: solo lectura.
+- **Mis partidas (n/5)**:
+  - Una tarjeta por partida con nombre, campus, nivel, tiempo jugado y «Última vez hace…». La
+    activa lleva el chip **Activa**.
+  - Al tocar otra partida, la app pregunta «¿Ver y jugar minijuegos con <nombre>?» y luego la activa.
+  - Las vinculadas tienen un menú con **Renombrar** (1 a 24 caracteres) y **Desvincular**. Al
+    desvincular, la partida sigue en la PC y se puede volver a vincular. La principal no tiene menú.
+  - **Escanear QR** abre el escáner de Google Play (`play-services-code-scanner`, solo QR). La
+    cámara la maneja Google Play, así que la app **no pide permiso de cámara**. Si el escáner no
+    está disponible (sin Play Services o sin cámara), la app lo avisa y abre **Escribir código**.
+  - **Escribir código**: un campo de 8 caracteres que se pasa a mayúsculas y pierde espacios y guiones.
+  - Al vincular sale el aviso «Partida vinculada: <nombre>», más el nombre del equipo si viene.
+  - Con 5 partidas, los dos botones se deshabilitan con «Desvincula una partida para agregar otra».
+  - Debajo se explica: «Juega en la PC sin cuenta y escanea el QR que aparece en el juego para
+    traer esa partida aquí.»
 
 Los avatares precargados están en una sola lista (`ui/components/AvatarPresets.kt`). Por ahora
 Víctor usa su cara y los demás (Salva, Juanma, Vicente, Boniel, Osiel, Elías y Toño) son un círculo
@@ -355,7 +380,10 @@ Todas las pantallas dibujan el avatar con el mismo componente, `OdiseaAvatar`.
 Reglas generales, todas **validadas por el servidor**:
 - Cada minijuego tiene **4 intentos cada 4 horas**.
 - Las recompensas (monedas u objeto) las decide el servidor; la app solo muestra el resultado.
-- Los objetos ganados **llegan a la mochila la próxima vez que se abre el juego de PC** (quedan como recompensas pendientes).
+- Los **intentos son por cuenta**, pero las monedas y los objetos van a la **partida activa**.
+  Minijuegos y Recompensa muestran «Premios para: <partida activa>». Con la migración 08,
+  `play_minigame_attempt` y `make_offer` también devuelven el `save_id` que recibió el premio.
+- Los objetos ganados **llegan a esa partida la próxima vez que se sincronice el juego** (quedan como recompensas pendientes).
 
 ### Despierta a Salva (`DESPIERTA_SALVA`)
 Barra de precisión: un marcador va y viene, y hay que tocar cuando pasa por la **zona dorada**.
@@ -386,7 +414,7 @@ Un solo proyecto de Supabase lo comparten el juego de PC y la app. Tiene tres es
 | Esquema | Contenido |
 |---|---|
 | `public` | Datos del jugador compartidos con el juego: `players`, `player_stats`, `player_wallet`, `coin_transactions`, `player_inventory`, `player_zone_progress`, `player_bestiary_unlocks`, `pending_rewards`, catálogos `items`, `characters`, `zones`. |
-| `app` | Lo exclusivo de la app: `minigames`, negociaciones con Vicente, `campus_news`. |
+| `app` | Lo exclusivo de la app: `minigames`, negociaciones con Vicente, `campus_news` y, con la migración 08, `linked_saves` y `active_save`. |
 | `game` | Lo exclusivo del juego de PC. |
 
 **Funciones que usa la app**
@@ -397,6 +425,10 @@ Un solo proyecto de Supabase lo comparten el juego de PC y la app. Tiene tres es
 | `app.get_minigame_state(p_code)` | Intentos restantes y hora de recarga. |
 | `app.play_minigame_attempt(p_code, p_result)` | Registra una partida de Salva y da la recompensa. |
 | `app.start_negotiation()` / `app.make_offer(...)` | Negociación con Vicente. |
+| `app.get_active_snapshot()` | Foto de la partida activa, más `save` (migración 08). |
+| `app.list_my_saves()` | Partidas de la cuenta, la principal primero (migración 08). |
+| `app.link_save(p_code)` / `app.set_active_save(p_save_id)` | Vincular una partida (queda activa) y cambiar la activa (migración 08). |
+| `app.rename_save(p_save_id, p_name)` / `app.unlink_save(p_save_id)` | Renombrar o desvincular una vinculada (migración 08). |
 
 Además, la app lee y actualiza `players.display_name` y `players.avatar_url` directamente (el
 snapshot no trae el avatar). Las políticas RLS solo permiten leer y editar la fila propia.
@@ -411,6 +443,13 @@ snapshot no trae el avatar). Las políticas RLS solo permiten leer y editar la f
   Cada jugador solo puede subir o actualizar dentro de su carpeta `{auth.uid()}/`. No hay política
   de borrado: la app siempre sobrescribe el mismo archivo (`upsert`).
 - La URL pública es `<SUPABASE_URL>/storage/v1/object/public/avatars/<uid>/avatar.webp?v=<número>`.
+
+**Partidas vinculadas** (migración `08_partidas_vinculadas_qr`, **sin aplicar todavía**)
+- `app.linked_saves`: partidas del juego de PC (jugadores anónimos) vinculadas a cada cuenta.
+  Hasta 4 por cuenta, más la principal.
+- `app.active_save`: la partida activa de cada cuenta (null = la principal).
+- Los errores de `link_save` ya vienen en español y la app los muestra tal cual. El contrato
+  completo está en `tools/proposals/08_partidas_vinculadas_qr.md`.
 
 **Seguridad en el servidor**
 - Toda función identifica al jugador con `auth.uid()` (el token de la sesión). Nunca recibe un id de jugador desde la app.
@@ -435,6 +474,19 @@ Así fluye una recompensa: **app** gana objeto o monedas → queda en `pending_r
 llama a `claim_pending_rewards` al iniciar → aparece en la mochila o el saldo → la **app** lo ve en
 la siguiente sincronización.
 
+**Jugar sin cuenta y vincular con QR** (migración 08). Lo que debe hacer Unity:
+
+1. Si no hay cuenta, iniciar una **sesión anónima** con `signInAnonymously`
+   (`/auth/v1/signup` sin correo). El progreso se guarda igual, con las mismas funciones.
+2. Para vincular, llamar a `public.create_save_link_code(p_device_name)` y mostrar:
+   - el **QR** generado con `qr_payload` (`laodisea://vincular?c=CODIGO`);
+   - el **código en texto** (8 caracteres), por si el teléfono no puede escanear.
+3. Consultar `public.get_save_link_status()` para mostrar «Vinculada a <nombre>» cuando el
+   jugador ya escaneó el QR.
+4. Para la **entrega inmediata** de premios, escuchar por Realtime los `INSERT` de
+   `public.pending_rewards` de su jugador y llamar a `claim_pending_rewards` al recibirlos, sin
+   esperar a reiniciar el juego.
+
 ---
 
 ## 13. Pruebas
@@ -449,6 +501,8 @@ la siguiente sincronización.
 | `NegotiationTest` | Validación de ofertas, respuestas de Vicente y ánimo. |
 | `ProfileTest` | Lectura y escritura de `avatar_url`, URL pública de la foto y validación del nombre de jugador. |
 | `AvatarImageTest` | Recorte cuadrado centrado y submuestreo de la foto de perfil. |
+| `SaveLinkTest` | Lectura del QR y del código escrito a mano (normalización y errores) y nombre de partida. |
+| `SavesTest` | Decodifica `list_my_saves`, `get_active_snapshot` con `save` y `link_save` desde los ejemplos de `test/resources`. También revisa los mensajes del servidor, la detección de «función no existe» y «Última vez hace…». |
 | `AuthValidationTest` | Código de recuperación (solo dígitos, exactamente 6) y reglas de la contraseña nueva. |
 
 **Pruebas de integración con Unity** (`tools/integration`):
@@ -486,6 +540,8 @@ la siguiente sincronización.
 - **Permisos**: solo `INTERNET` y `ACCESS_NETWORK_STATE`. Para la foto de perfil se usa el selector de
   fotos del sistema (`PickVisualMedia`), que **no pide permisos** de almacenamiento ni de cámara: la
   app solo recibe la foto que el jugador elige.
+- El **escáner de QR** es el de Google Play (`GmsBarcodeScanning`). La cámara la abre Google Play
+  Services, así que la app **no gana permisos nuevos** (ni `CAMERA`): solo recibe el texto del QR.
 - Las fotos de perfil están en un bucket público: cualquiera con la URL puede verlas, pero solo su
   dueño puede reemplazarlas.
 
@@ -501,8 +557,14 @@ la siguiente sincronización.
 | 4 | Noticias del campus y pruebas de integración con Unity | ✅ |
 | UX docente, fase 1 | Logo nuevo (ícono, splash, sesión, Más) y recuperar contraseña con código de 6 dígitos | ✅ |
 | UX docente, fase 2 | Perfil con avatares (8 precargados y foto propia); Ajustes queda solo con el tema | ✅ |
+| UX docente, fase 3 | Partidas vinculadas por QR (lado app), contra el contrato de la migración 08 | ✅ app / ⏳ servidor |
 
 **Pendiente**
+- **Aprobar y aplicar la migración 08** (partidas vinculadas por QR). Mientras tanto, la app usa
+  `get_player_snapshot` y oculta todo lo de partidas.
+- **Activar «Allow anonymous sign-ins»** en Supabase (Authentication → Sign In / Providers), para
+  que el juego de PC se pueda jugar sin cuenta.
+- **Unity**: sesión anónima, QR de vinculación, estado de vinculación y Realtime de premios (ver §12).
 - **Arte final de los avatares**: hoy, salvo Víctor, son círculos con la inicial. Basta con agregar
   cada imagen en `ui/components/AvatarPresets.kt`.
 - **Plantilla de correo «Reset password» de Supabase** (Authentication → Email Templates): debe

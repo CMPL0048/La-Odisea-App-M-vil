@@ -29,6 +29,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -155,12 +157,15 @@ fun FormScreenTemplate(
     title: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Para avisos cortos (snackbar) de la pantalla, si los usa. */
+    snackbarHostState: SnackbarHostState? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Scaffold(
         modifier = modifier,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { OdiseaTopBar(title = title, navigationIcon = { BackButton(onBack) }) },
+        snackbarHost = { if (snackbarHostState != null) SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(
             modifier = Modifier

@@ -32,7 +32,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,8 +64,21 @@ import com.laodisea.app.ui.components.PresetAvatar
 import com.laodisea.app.ui.templates.FormScreenTemplate
 
 @Composable
-fun ProfileScreen(onBack: () -> Unit, viewModel: ProfileViewModel = hiltViewModel()) {
+fun ProfileScreen(
+    onBack: () -> Unit,
+    viewModel: ProfileViewModel = hiltViewModel(),
+    savesViewModel: SavesViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val saves by savesViewModel.list.collectAsStateWithLifecycle()
+    val savesState by savesViewModel.state.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(savesState.message) {
+        savesState.message?.let {
+            snackbar.showSnackbar(it)
+            savesViewModel.onMessageShown()
+        }
+    }
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val avatarUrl = profile?.avatarUrl
     var showPicker by rememberSaveable { mutableStateOf(false) }
@@ -75,7 +90,7 @@ fun ProfileScreen(onBack: () -> Unit, viewModel: ProfileViewModel = hiltViewMode
         }
     }
 
-    FormScreenTemplate(title = "Perfil", onBack = onBack) {
+    FormScreenTemplate(title = "Perfil", onBack = onBack, snackbarHostState = snackbar) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -124,6 +139,8 @@ fun ProfileScreen(onBack: () -> Unit, viewModel: ProfileViewModel = hiltViewMode
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        // Sin la migración 08 en el servidor no hay lista: la sección no aparece.
+        if (saves.isNotEmpty()) SavesSection(saves = saves, state = savesState, viewModel = savesViewModel)
     }
 
     if (showPicker) {

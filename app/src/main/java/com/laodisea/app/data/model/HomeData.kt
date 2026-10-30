@@ -15,7 +15,13 @@ data class HomeData(
     val fetchedAt: Long = 0,
     /** Nombre y avatar de `public.players`. Null en cachés guardadas antes de existir el perfil. */
     val profile: PlayerProfile? = null,
-)
+    /** Partidas de la cuenta (principal primero). Vacía si el servidor aún no las tiene. */
+    val saves: List<SaveSummary> = emptyList(),
+) {
+    /** Nombre de la partida que se ve y a la que llegan los premios, si se conoce. */
+    val activeSaveName: String?
+        get() = snapshot.save?.name ?: saves.firstOrNull { it.isActive }?.name
+}
 
 /** Fila de app.minigames. */
 @Serializable

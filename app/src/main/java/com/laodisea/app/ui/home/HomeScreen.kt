@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +39,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +67,8 @@ import com.laodisea.app.ui.theme.Papel
 import com.laodisea.app.ui.theme.Resistencia
 import com.laodisea.app.ui.theme.Vida
 import com.laodisea.app.ui.util.Formats
+import com.laodisea.app.ui.profile.SavePickerSheet
+import com.laodisea.app.ui.profile.SavesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,8 +78,12 @@ fun HomeScreen(
     onOpenNews: () -> Unit,
     onOpenProfile: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
+    savesViewModel: SavesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val saves by savesViewModel.list.collectAsStateWithLifecycle()
+    val savesState by savesViewModel.state.collectAsStateWithLifecycle()
+    var showSaves by rememberSaveable { mutableStateOf(false) }
     val snapshot = state.data?.snapshot
     val name = state.data?.profile?.displayName ?: snapshot?.player?.displayName ?: "Jugador"
 
@@ -96,13 +107,24 @@ fun HomeScreen(
         ) {
             val data = state.data
             when {
-                data != null -> HomeContent(data, state, onOpenStats, onOpenMinigames, onOpenNews)
+                data != null -> HomeContent(data, state, onOpenStats, onOpenMinigames, onOpenNews, onOpenSaves = { showSaves = true })
                 state.refreshing -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
                 else -> HomeError(message = state.error ?: "No se pudo cargar tu partida.", onRetry = viewModel::refresh)
             }
         }
+    }
+    if (showSaves) {
+        SavePickerSheet(
+            saves = saves,
+            busy = savesState.busy,
+            onSelect = { save ->
+                showSaves = false
+                savesViewModel.activate(save)
+            },
+            onDismiss = { showSaves = false },
+        )
     }
 }
 
@@ -113,6 +135,7 @@ private fun HomeContent(
     onOpenStats: () -> Unit,
     onOpenMinigames: () -> Unit,
     onOpenNews: () -> Unit,
+    onOpenSaves: () -> Unit,
 ) {
     val snapshot = data.snapshot
     LazyColumn(
@@ -123,7 +146,7 @@ private fun HomeContent(
         val status = ScreenStatus(state.sync, hasData = true, loaded = true, fetchedAt = data.fetchedAt)
         if (status.showsBanner) item { SyncBanner(status) }
         item { StatsCard(snapshot, onOpenStats) }
-        item { ZoneCard(snapshot) }
+        item { ZoneCard(snapshot, data.activeSaveName, onOpenSaves) }
         item { JuanmaCard(JuanmaTips.forHome(data)) }
         item { MinigamesCard(data.minigames, onOpenMinigames) }
         item { NewsCard(data.latestNews, onOpenNews) }
@@ -162,7 +185,7 @@ private fun MiniStat(label: String, value: String) {
 }
 
 @Composable
-private fun ZoneCard(snapshot: PlayerSnapshot) {
+private fun ZoneCard(snapshot: PlayerSnapshot, saveName: String?, onOpenSaves: () -> Unit) {
     val zone = snapshot.currentZone
     val progress = snapshot.progress
     OdiseaCard(
@@ -170,6 +193,8 @@ private fun ZoneCard(snapshot: PlayerSnapshot) {
         icon = Icons.Outlined.Explore,
         containerColor = BosqueProfundo,
         contentColor = Papel,
+        // Sin la migración de partidas en el servidor no se conoce el nombre y no hay chip.
+        trailing = saveName?.let { name -> { SaveChip(name, onOpenSaves) } },
     ) {
         Text(zone?.name ?: "Sin zona", style = MaterialTheme.typography.headlineSmall)
         if (zone != null && zone.sublevelsTotal > 0) {
@@ -200,6 +225,27 @@ private fun ZoneCard(snapshot: PlayerSnapshot) {
                 "${snapshot.completedZones} de ${snapshot.zones.size} campus completados",
                 style = MaterialTheme.typography.labelMedium,
             )
+        }
+    }
+}
+
+/** Partida activa; tocarla abre la hoja para cambiar de partida. */
+@Composable
+private fun SaveChip(name: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.tertiary,
+        contentColor = MaterialTheme.colorScheme.onTertiary,
+        modifier = Modifier.semantics { contentDescription = "Partida activa: $name. Toca para cambiar de partida" },
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(Icons.Outlined.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp))
+            Text(name, style = MaterialTheme.typography.labelMedium, maxLines = 1)
         }
     }
 }

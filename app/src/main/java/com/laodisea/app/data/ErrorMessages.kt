@@ -18,11 +18,30 @@ fun Throwable.isEmailRateLimit(): Boolean {
         text.contains("only request this after", ignoreCase = true)
 }
 
+/**
+ * ¿El servidor respondió que la función no existe? (PostgREST PGRST202 o Postgres 42883.)
+ * Sirve para seguir funcionando con un servidor que aún no tiene la migración de partidas.
+ */
+fun Throwable.isMissingFunction(): Boolean {
+    val text = message.orEmpty()
+    return text.contains("PGRST202") || text.contains("Could not find the function", ignoreCase = true) ||
+        text.contains("42883") || (text.contains("function", ignoreCase = true) && text.contains("does not exist", ignoreCase = true))
+}
+
+/** Mensajes de las funciones de partidas vinculadas; ya vienen en español y se muestran tal cual. */
+private val SERVER_SAVE_MESSAGES = listOf(
+    "El código no es válido o ya caducó",
+    "Esta partida ya está vinculada a una cuenta",
+    "Ya tienes 5 partidas. Desvincula una para agregar otra",
+    "No puedes vincular tu propia cuenta",
+)
+
 /** Traduce los errores de Supabase a un mensaje corto en español para el jugador. */
 fun Throwable.toUserMessage(): String {
     if (isNetworkError()) return "Sin conexión. Revisa tu internet e intenta de nuevo."
     if (this is AvatarImageException) return message.orEmpty()
     val text = message.orEmpty()
+    SERVER_SAVE_MESSAGES.firstOrNull { text.contains(it, ignoreCase = true) }?.let { return "$it." }
     return when {
         text.contains("Invalid login credentials", ignoreCase = true) -> "Correo o contraseña incorrectos."
         text.contains("Email not confirmed", ignoreCase = true) -> "Confirma tu correo antes de iniciar sesión."

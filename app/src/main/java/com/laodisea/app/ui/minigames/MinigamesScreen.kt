@@ -65,10 +65,24 @@ fun MinigamesScreen(
         onBack = onBack,
         coins = home?.snapshot?.coins,
     ) {
+        home?.activeSaveName?.let { name ->
+            item(key = "premios") { PrizesFor(name) }
+        }
         items(home?.minigames.orEmpty(), key = { it.code }) { game ->
             MinigameCard(game, offline = offline, onPlay = { onPlay(game.code) })
         }
     }
+}
+
+/** «Premios para: <partida activa>»; los intentos son de la cuenta, los premios de la partida. */
+@Composable
+fun PrizesFor(saveName: String, modifier: Modifier = Modifier) {
+    Text(
+        "Premios para: $saveName",
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier,
+    )
 }
 
 @Composable
