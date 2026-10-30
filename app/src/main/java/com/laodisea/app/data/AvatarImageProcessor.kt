@@ -5,10 +5,11 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.graphics.Matrix
-import android.media.ExifInterface
+import androidx.exifinterface.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.core.graphics.scale
 import com.laodisea.app.domain.AVATAR_MAX_BYTES
 import com.laodisea.app.domain.AVATAR_SIZE_PX
 import com.laodisea.app.domain.AVATAR_WEBP_QUALITY
@@ -85,7 +86,7 @@ class AvatarImageProcessor @Inject constructor(
     private fun cropAndScale(source: Bitmap): Bitmap {
         val crop = centerSquareCrop(source.width, source.height)
         val square = Bitmap.createBitmap(source, crop.left, crop.top, crop.size, crop.size)
-        return Bitmap.createScaledBitmap(square, AVATAR_SIZE_PX, AVATAR_SIZE_PX, true)
+        return square.scale(AVATAR_SIZE_PX, AVATAR_SIZE_PX)
     }
 
     private fun webpFormat(): Bitmap.CompressFormat =
