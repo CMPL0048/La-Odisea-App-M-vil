@@ -20,6 +20,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun LoginScreen(
     onSignedIn: () -> Unit,
     onRegister: () -> Unit,
+    /** Recibe el correo ya escrito (puede ir vacío) para prellenar la recuperación. */
+    onForgotPassword: (email: String) -> Unit,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -45,6 +47,11 @@ fun LoginScreen(
             onDone = viewModel::submit,
             enabled = !state.loading,
         )
+        TextButton(
+            onClick = { onForgotPassword(state.email.trim()) },
+            enabled = !state.loading,
+            modifier = Modifier.align(Alignment.End),
+        ) { Text("¿Olvidaste tu contraseña?") }
         ErrorText(state.error)
         PrimaryButton(
             text = "Entrar",

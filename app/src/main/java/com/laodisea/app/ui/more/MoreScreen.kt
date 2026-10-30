@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.laodisea.app.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Person
@@ -105,12 +109,22 @@ fun MoreScreen(
                 Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null)
                 Text("Cerrar sesión", modifier = Modifier.padding(start = 8.dp))
             }
-            Text(
-                "Versión ${BuildConfig.VERSION_NAME}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Row(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.logo_odisea),
+                    contentDescription = "Logo de La Odisea",
+                    modifier = Modifier.size(40.dp),
+                )
+                Text(
+                    "Versión ${BuildConfig.VERSION_NAME}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

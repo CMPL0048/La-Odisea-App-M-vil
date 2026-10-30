@@ -2,6 +2,7 @@ package com.laodisea.app.data.repository
 
 import com.laodisea.app.data.local.PlayerCache
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -48,7 +49,27 @@ class AuthRepository @Inject constructor(
             this.email = email.trim()
             this.password = password
         }
-        // Si entra otra cuenta, la caché anterior ya no le corresponde.
+        clearCacheIfOtherAccount()
+    }
+
+    /** Pide a Supabase que mande el código de 6 dígitos para recuperar la contraseña. */
+    suspend fun sendPasswordResetCode(email: String) {
+        auth.resetPasswordForEmail(email.trim())
+    }
+
+    /** Valida el código de recuperación; si es correcto, Supabase abre la sesión del jugador. */
+    suspend fun verifyResetCode(email: String, code: String) {
+        auth.verifyEmailOtp(type = OtpType.Email.RECOVERY, email = email.trim(), token = code)
+        clearCacheIfOtherAccount()
+    }
+
+    /** Cambia la contraseña de la sesión actual (la que abrió [verifyResetCode]). */
+    suspend fun updatePassword(newPassword: String) {
+        auth.updateUser { password = newPassword }
+    }
+
+    // Si entra otra cuenta, la caché anterior ya no le corresponde.
+    private suspend fun clearCacheIfOtherAccount() {
         if (cache.ownerId() != null && cache.ownerId() != currentUserId) cache.clear()
     }
 

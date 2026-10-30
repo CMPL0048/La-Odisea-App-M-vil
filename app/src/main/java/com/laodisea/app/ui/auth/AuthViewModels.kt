@@ -84,9 +84,7 @@ class RegisterViewModel @Inject constructor(
         val error = when {
             s.displayName.trim().length < 3 -> "El nombre de jugador debe tener al menos 3 letras."
             !isValidEmail(s.email) -> "Escribe un correo válido."
-            s.password.length < 6 -> "La contraseña debe tener al menos 6 caracteres."
-            s.password != s.confirmPassword -> "Las contraseñas no coinciden."
-            else -> null
+            else -> newPasswordError(s.password, s.confirmPassword)
         }
         if (error != null) {
             _state.update { it.copy(error = error) }
@@ -109,4 +107,4 @@ class RegisterViewModel @Inject constructor(
     }
 }
 
-private fun isValidEmail(email: String) = Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
+internal fun isValidEmail(email: String) = Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()

@@ -108,7 +108,7 @@ La app sigue tres capas. Cada una solo conoce a la de abajo:
 ```
 
 - **Repositorios** (`data/repository`): son la única puerta al servidor y a la caché.
-  - `AuthRepository`: inicio de sesión, registro, restauración y cierre de sesión.
+  - `AuthRepository`: inicio de sesión, registro, recuperación de contraseña, restauración y cierre de sesión.
   - `PlayerRepository`: descarga la foto del jugador, los minijuegos, las noticias y los catálogos, y los guarda.
   - `MinigameRepository`: llama a las funciones de los minijuegos.
   - `SettingsRepository`: preferencias del dispositivo (tema).
@@ -163,8 +163,24 @@ tools/proposals/              # Cambios de servidor propuestos (sin aplicar)
 - **Registro**: nombre de jugador (mínimo 3 letras), correo válido, contraseña (mínimo 6
   caracteres) y su confirmación. El nombre se manda como `display_name`. Si el proyecto pide
   confirmar el correo, la app avisa «Revisa tu correo» y regresa al inicio de sesión.
-- **Splash**: al abrir la app se espera a que Supabase cargue la sesión guardada (mínimo 0.8 s
-  para que se vea el logo):
+- **Recuperar contraseña** («¿Olvidaste tu contraseña?» en el inicio de sesión). Supabase Auth genera
+  y manda un **código de 6 dígitos**; la app solo tiene las pantallas:
+  1. *Recuperar acceso*: el jugador escribe su correo (prellenado si ya lo había escrito) y la app
+     llama a `resetPasswordForEmail`. Siempre responde «Si el correo está registrado, te enviamos un
+     código de 6 dígitos.», exista o no la cuenta, para no revelar qué correos están registrados.
+     Solo la falta de red o el límite de envíos se muestran como error.
+  2. *Nueva contraseña*: código (solo dígitos, exactamente 6), nueva contraseña (mínimo 6) y su
+     confirmación. La app valida el código con `verifyEmailOtp(type = RECOVERY)`, que abre la sesión,
+     y después cambia la contraseña con `updateUser`. Si el cambio falla, al reintentar no se vuelve a
+     validar el código (ya se usó). «Reenviar código» se habilita tras 60 s.
+  3. Al terminar entra a la pantalla principal igual que un inicio de sesión normal (incluida la
+     limpieza de caché si es otra cuenta).
+  - Errores en español: código inválido o caducado, «Espera un momento antes de pedir otro código»
+    y contraseña igual a la anterior.
+  - Las reglas de código y contraseña son funciones puras en `ui/auth/AuthValidation.kt`.
+- **Splash**: el splash del sistema muestra el ícono de la app (la cara de Víctor) y luego la
+  pantalla de la app muestra el logo completo. Se espera a que Supabase cargue la sesión guardada
+  (mínimo 0.8 s para que se vea el logo):
   - Sesión válida → pantalla principal.
   - Sin red para renovar el token → **también entra**, en modo sin conexión con los datos guardados.
   - Sin sesión → inicio de sesión.
@@ -213,9 +229,14 @@ Hay dos niveles de navegación:
 
 ```
 Splash ──► Inicio de sesión ◄──► Registro
-   │              │
-   └──────────────┴──► Principal (barra inferior)
+   │              │      └──► Recuperar acceso ──► Nueva contraseña
+   │              │                                      │
+   └──────────────┴──────────────────────────────────────┴──► Principal (barra inferior)
 ```
+
+Las rutas son tipadas: `ForgotPasswordRoute(email = "")` lleva el correo prellenado y
+`ResetPasswordRoute(email)` el correo al que se mandó el código. Entrar a Principal (desde el
+splash, el inicio de sesión, el registro o la nueva contraseña) limpia la pila.
 
 **Principal** (`ui/main/MainScreen.kt`): una barra inferior con 5 secciones. Cada sección tiene
 su propio grafo, así la barra marca la sección correcta aunque se esté en un detalle, y cada
@@ -241,10 +262,20 @@ Al terminar una partida, el juego se reemplaza por la pantalla de **Recompensa**
 ## 9. Pantallas, una por una
 
 ### Splash
-Logo, nombre y lema mientras se restaura la sesión. Decide a dónde ir (ver [§6](#6-sesión-y-cuentas)).
+Logo de La Odisea (ya trae el nombre) y lema mientras se restaura la sesión. Decide a dónde ir (ver [§6](#6-sesión-y-cuentas)).
 
 ### Inicio de sesión y Registro
-Formularios con validación inmediata, botón para mostrar u ocultar la contraseña y mensajes de error en español.
+Logo arriba y formularios con validación inmediata, botón para mostrar u ocultar la contraseña y
+mensajes de error en español. Debajo de la contraseña, «¿Olvidaste tu contraseña?» abre la recuperación.
+
+### Recuperar acceso
+Campo de correo (misma validación que el registro) y botón «Enviar código». Siempre avisa «Si el
+correo está registrado, te enviamos un código de 6 dígitos.» y pasa a *Nueva contraseña*.
+
+### Nueva contraseña
+Código de 6 dígitos (teclado numérico), nueva contraseña y confirmación, ambas con mostrar u
+ocultar. «Reenviar código» queda deshabilitado con una cuenta regresiva de 60 s. Al cambiar la
+contraseña entra directo a la pantalla principal.
 
 ### Inicio
 Arriba, la barra con el nombre del jugador, su nivel, su avatar y sus monedas. Debajo, tarjetas:
@@ -288,7 +319,7 @@ desbloquearse. Al tocar uno descubierto se abre su detalle.
 
 ### Más
 Tarjeta de la cuenta (nombre y correo), acceso a **Ajustes y perfil** y a **Estadísticas**, botón
-**Cerrar sesión** y versión de la app.
+**Cerrar sesión** y, al final, el logo pequeño con la versión de la app.
 
 ### Ajustes y perfil
 - **Nombre de jugador**: mínimo 3 letras. Se guarda en el servidor y se ve también en el juego de PC.
@@ -381,6 +412,7 @@ la siguiente sincronización.
 | `GameViewsTest` | Mapa, mochila, muestrario, bestiario y estadísticas. |
 | `SalvaGameTest` | Movimiento, aciertos, fallos, aceleración y fin de partida de Salva. |
 | `NegotiationTest` | Validación de ofertas, respuestas de Vicente y ánimo. |
+| `AuthValidationTest` | Código de recuperación (solo dígitos, exactamente 6) y reglas de la contraseña nueva. |
 
 **Pruebas de integración con Unity** (`tools/integration`):
 
@@ -425,8 +457,12 @@ la siguiente sincronización.
 | 2 | Inicio y pantallas de lectura: Mapa, Mochila, Muestrario, Bestiario, Estadísticas, Más, Ajustes | ✅ |
 | 3 | Minijuegos: Despierta a Salva y Negocia con Vicente, pantalla de recompensa | ✅ |
 | 4 | Noticias del campus y pruebas de integración con Unity | ✅ |
+| UX docente, fase 1 | Logo nuevo (ícono, splash, sesión, Más) y recuperar contraseña con código de 6 dígitos | ✅ |
 
 **Pendiente**
+- **Plantilla de correo «Reset password» de Supabase** (Authentication → Email Templates): debe
+  mostrar el código con `{{ .Token }}`. La plantilla por defecto solo trae el enlace
+  (`{{ .ConfirmationURL }}`), y con ella al jugador no le llega ningún código que escribir en la app.
 - **Tope diario de monedas** para `adjust_coins` (hoy permite +1000 por llamada sin límite).
   Hay una propuesta en `tools/proposals/adjust_coins_tope_diario.sql` (máximo +2000 por jugador
   al día), **sin aplicar** porque cambia el contrato con Unity y requiere aprobación.

@@ -62,12 +62,12 @@ fun AuthLayout(
             modifier = Modifier.statusBarsPadding().padding(top = 32.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // El logo ya trae el nombre «La Odisea».
             Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
-                contentDescription = null,
-                modifier = Modifier.size(112.dp),
+                painter = painterResource(R.drawable.logo_odisea),
+                contentDescription = "Logo de La Odisea",
+                modifier = Modifier.size(120.dp),
             )
-            Text("La Odisea", style = MaterialTheme.typography.headlineMedium, color = com.laodisea.app.ui.theme.OroMoneda)
         }
         Surface(
             modifier = Modifier.fillMaxWidth().weight(1f, fill = true),
@@ -149,6 +149,20 @@ fun PrimaryButton(text: String, onClick: () -> Unit, enabled: Boolean, loading: 
         } else {
             Text(text, style = MaterialTheme.typography.titleSmall)
         }
+    }
+}
+
+/** Aviso informativo (no es error), por ejemplo «te enviamos un código». */
+@Composable
+fun InfoText(message: String?) {
+    if (message == null) return
+    Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.small) {
+        Text(
+            message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+        )
     }
 }
 

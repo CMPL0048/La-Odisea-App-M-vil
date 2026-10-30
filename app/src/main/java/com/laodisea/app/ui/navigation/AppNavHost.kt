@@ -5,8 +5,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.laodisea.app.ui.auth.ForgotPasswordScreen
 import com.laodisea.app.ui.auth.LoginScreen
 import com.laodisea.app.ui.auth.RegisterScreen
+import com.laodisea.app.ui.auth.ResetPasswordScreen
 import com.laodisea.app.ui.main.MainScreen
 import com.laodisea.app.ui.splash.SplashScreen
 import kotlinx.serialization.Serializable
@@ -14,6 +16,9 @@ import kotlinx.serialization.Serializable
 @Serializable data object SplashRoute
 @Serializable data object LoginRoute
 @Serializable data object RegisterRoute
+/** [email] llega prellenado si el jugador ya lo había escrito en el inicio de sesión. */
+@Serializable data class ForgotPasswordRoute(val email: String = "")
+@Serializable data class ResetPasswordRoute(val email: String)
 @Serializable data object MainRoute
 
 /** Navegación raíz: splash → sesión → secciones principales. */
@@ -30,10 +35,24 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             LoginScreen(
                 onSignedIn = { navController.replaceAll(MainRoute) },
                 onRegister = { navController.navigate(RegisterRoute) },
+                onForgotPassword = { email -> navController.navigate(ForgotPasswordRoute(email)) },
             )
         }
         composable<RegisterRoute> {
             RegisterScreen(
+                onSignedIn = { navController.replaceAll(MainRoute) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        // Los ViewModels de estas dos pantallas leen el correo de los argumentos de la ruta.
+        composable<ForgotPasswordRoute> {
+            ForgotPasswordScreen(
+                onCodeSent = { email -> navController.navigate(ResetPasswordRoute(email)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<ResetPasswordRoute> {
+            ResetPasswordScreen(
                 onSignedIn = { navController.replaceAll(MainRoute) },
                 onBack = { navController.popBackStack() },
             )

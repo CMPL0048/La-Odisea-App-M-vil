@@ -10,6 +10,14 @@ fun Throwable.isNetworkError(): Boolean =
         it is HttpRequestException || it is HttpRequestTimeoutException || it is IOException
     }
 
+/** ¿Supabase no mandó el correo porque se pidió muy seguido? */
+fun Throwable.isEmailRateLimit(): Boolean {
+    val text = message.orEmpty()
+    return text.contains("over_email_send_rate_limit", ignoreCase = true) ||
+        text.contains("email rate limit", ignoreCase = true) ||
+        text.contains("only request this after", ignoreCase = true)
+}
+
 /** Traduce los errores de Supabase a un mensaje corto en español para el jugador. */
 fun Throwable.toUserMessage(): String {
     if (isNetworkError()) return "Sin conexión. Revisa tu internet e intenta de nuevo."
@@ -21,6 +29,11 @@ fun Throwable.toUserMessage(): String {
         text.contains("Password should be", ignoreCase = true) -> "La contraseña debe tener al menos 6 caracteres."
         text.contains("valid email", ignoreCase = true) || text.contains("invalid format", ignoreCase = true) ->
             "Escribe un correo válido."
+        // Recuperación de contraseña con código de 6 dígitos.
+        text.contains("otp_expired", ignoreCase = true) || text.contains("expired or is invalid", ignoreCase = true) ->
+            "El código no es válido o ya caducó. Pide uno nuevo."
+        isEmailRateLimit() -> "Espera un momento antes de pedir otro código."
+        text.contains("same_password", ignoreCase = true) -> "La nueva contraseña debe ser distinta a la anterior."
         text.contains("rate limit", ignoreCase = true) -> "Demasiados intentos. Espera un momento."
         text.contains("No autenticado", ignoreCase = true) || text.contains("JWT", ignoreCase = true) ->
             "Tu sesión expiró. Vuelve a iniciar sesión."

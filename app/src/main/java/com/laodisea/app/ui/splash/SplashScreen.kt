@@ -74,12 +74,12 @@ fun SplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // El logo ya trae el nombre, así que solo va el lema debajo.
             Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
-                contentDescription = null,
-                modifier = Modifier.size(160.dp),
+                painter = painterResource(R.drawable.logo_odisea),
+                contentDescription = "Logo de La Odisea",
+                modifier = Modifier.size(200.dp),
             )
-            Text("La Odisea", style = MaterialTheme.typography.displaySmall, color = OroMoneda)
             Text("Una aventura por los campus de Nayarit", style = MaterialTheme.typography.bodyMedium, color = Papel)
             CircularProgressIndicator(color = OroMoneda, strokeWidth = 3.dp, modifier = Modifier.size(28.dp))
         }
