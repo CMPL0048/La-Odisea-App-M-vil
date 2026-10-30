@@ -444,7 +444,7 @@ snapshot no trae el avatar). Las políticas RLS solo permiten leer y editar la f
   de borrado: la app siempre sobrescribe el mismo archivo (`upsert`).
 - La URL pública es `<SUPABASE_URL>/storage/v1/object/public/avatars/<uid>/avatar.webp?v=<número>`.
 
-**Partidas vinculadas** (migración `08_partidas_vinculadas_qr`, **sin aplicar todavía**)
+**Partidas vinculadas** (migración `08_partidas_vinculadas_qr`, aplicada el 2026-10-30)
 - `app.linked_saves`: partidas del juego de PC (jugadores anónimos) vinculadas a cada cuenta.
   Hasta 4 por cuenta, más la principal.
 - `app.active_save`: la partida activa de cada cuenta (null = la principal).
@@ -557,12 +557,14 @@ la siguiente sincronización.
 | 4 | Noticias del campus y pruebas de integración con Unity | ✅ |
 | UX docente, fase 1 | Logo nuevo (ícono, splash, sesión, Más) y recuperar contraseña con código de 6 dígitos | ✅ |
 | UX docente, fase 2 | Perfil con avatares (8 precargados y foto propia); Ajustes queda solo con el tema | ✅ |
-| UX docente, fase 3 | Partidas vinculadas por QR (lado app), contra el contrato de la migración 08 | ✅ app / ⏳ servidor |
+| UX docente, fase 3 | Partidas vinculadas por QR (lado app) y migración 08 aplicada en Supabase | ✅ |
+
+**Hecho el 2026-10-30**
+- Migración 08 (partidas vinculadas por QR) aplicada en Supabase con el visto bueno de Martin.
+  `app.list_my_saves` y `app.get_active_snapshot` ya responden.
+- «Allow anonymous sign-ins» activado en Supabase.
 
 **Pendiente**
-- **Aplicar la migración 08** (partidas vinculadas por QR): Martin la aprobó el 30 oct 2026. Hasta
-  que esté aplicada, la app usa `get_player_snapshot` y oculta todo lo de partidas.
-  «Allow anonymous sign-ins» ya está activado en Supabase (30 oct 2026).
 - **Unity**: sesión anónima, QR de vinculación, estado de vinculación y Realtime de premios (ver §12).
 - **Arte final de los avatares**: hoy, salvo Víctor, son círculos con la inicial. Basta con agregar
   cada imagen en `ui/components/AvatarPresets.kt`.

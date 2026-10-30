@@ -28,12 +28,18 @@ fun Throwable.isMissingFunction(): Boolean {
         text.contains("42883") || (text.contains("function", ignoreCase = true) && text.contains("does not exist", ignoreCase = true))
 }
 
-/** Mensajes de las funciones de partidas vinculadas; ya vienen en español y se muestran tal cual. */
+/**
+ * Todos los mensajes de las funciones de partidas vinculadas (migración 08). Ya vienen en español
+ * y se muestran tal cual. «No autenticado» no está aquí: se trata como sesión vencida.
+ */
 private val SERVER_SAVE_MESSAGES = listOf(
     "El código no es válido o ya caducó",
     "Esta partida ya está vinculada a una cuenta",
     "Ya tienes 5 partidas. Desvincula una para agregar otra",
     "No puedes vincular tu propia cuenta",
+    "Inicia sesión con tu cuenta para vincular partidas",
+    "Esa partida no está vinculada a tu cuenta",
+    "El nombre debe tener de 1 a 24 caracteres",
 )
 
 /** Traduce los errores de Supabase a un mensaje corto en español para el jugador. */

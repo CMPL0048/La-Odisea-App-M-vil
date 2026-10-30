@@ -1,8 +1,7 @@
 # Migración 08: partidas vinculadas por QR (contrato)
 
-> **Estado: APROBADA por Martin (30 oct 2026), pendiente de aplicar.** La app ya está
-> programada contra este contrato. Mientras la migración no exista, la app sigue funcionando
-> como antes (ver «Compatibilidad»).
+> **Estado: APLICADA el 2026-10-30** con el visto bueno de Martin. La app está programada contra
+> este contrato y sigue funcionando con un servidor sin la migración (ver «Compatibilidad»).
 
 ## Idea
 
@@ -40,12 +39,17 @@ errores con el mensaje ya en español.
 | `unlink_save(p_save_id)` | `{unlinked}` | **No borra el progreso**: la partida sigue en la PC y se puede volver a vincular. Si era la activa, vuelve la principal. |
 | `get_active_snapshot()` | el mismo JSON que `public.get_player_snapshot()`, pero de la partida activa, más `"save": {save_id, name, is_principal}` | La app lo usa en lugar de `get_player_snapshot` al sincronizar. |
 
-Errores de `link_save` (la app los muestra tal cual):
+Todos los errores en español de estas funciones (la app los muestra tal cual):
 
 - «El código no es válido o ya caducó»
 - «Esta partida ya está vinculada a una cuenta»
 - «Ya tienes 5 partidas. Desvincula una para agregar otra»
 - «No puedes vincular tu propia cuenta»
+- «Inicia sesión con tu cuenta para vincular partidas»
+- «Esa partida no está vinculada a tu cuenta»
+- «El nombre debe tener de 1 a 24 caracteres»
+
+«No autenticado» se trata como sesión vencida («Tu sesión expiró. Vuelve a iniciar sesión.»).
 
 Minijuegos: `play_minigame_attempt` y `make_offer` mandan las monedas y los objetos a la
 **partida activa** y además devuelven `save_id`.
@@ -73,7 +77,7 @@ Minijuegos: `play_minigame_attempt` y `make_offer` mandan las monedas y los obje
 - Con la lista vacía no aparecen la sección «Mis partidas», el chip de Inicio ni «Premios para».
 - `PlayerRepository.USE_ACTIVE_SNAPSHOT = false` obliga a usar siempre `get_player_snapshot`.
 
-## Pendiente en Supabase
+## En Supabase (hecho el 2026-10-30)
 
-1. ~~Aprobar~~ (aprobada el 30 oct 2026) y aplicar la migración 08.
-2. ~~Activar **Allow anonymous sign-ins**~~ (activado el 30 oct 2026).
+1. Migración 08 aplicada.
+2. **Allow anonymous sign-ins** activado.

@@ -96,6 +96,21 @@ class SavesTest {
     }
 
     @Test
+    fun allServerSaveMessagesPassThrough() {
+        listOf(
+            "El código no es válido o ya caducó",
+            "Esta partida ya está vinculada a una cuenta",
+            "Ya tienes 5 partidas. Desvincula una para agregar otra",
+            "No puedes vincular tu propia cuenta",
+            "Inicia sesión con tu cuenta para vincular partidas",
+            "Esa partida no está vinculada a tu cuenta",
+            "El nombre debe tener de 1 a 24 caracteres",
+        ).forEach { message -> assertEquals("$message.", Exception(message).toUserMessage()) }
+        // «No autenticado» sigue siendo sesión vencida.
+        assertEquals("Tu sesión expiró. Vuelve a iniciar sesión.", Exception("No autenticado").toUserMessage())
+    }
+
+    @Test
     fun detectsMissingFunction() {
         assertTrue(Exception("PGRST202: Could not find the function app.get_active_snapshot without parameters").isMissingFunction())
         assertTrue(Exception("42883: function app.list_my_saves() does not exist").isMissingFunction())
