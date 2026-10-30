@@ -35,7 +35,7 @@ del campus y jugar dos minijuegos que dan monedas y objetos que después aparece
 | **Mapa** | Campus recorridos, el actual y los que faltan. Solo se ve si el jugador tiene el objeto **Mapa**. |
 | **Mochila** | Objetos que lleva el jugador, con su detalle, y el **Muestrario** con todos los objetos del juego. |
 | **Bestiario** | Personajes descubiertos (protagonistas, aliados y jefes). Los secretos solo aparecen al desbloquearse. |
-| **Más** | Cuenta, ajustes (nombre de jugador y tema claro u oscuro), estadísticas y cerrar sesión. |
+| **Más** | Perfil (avatar, nombre de jugador y correo), ajustes (tema claro u oscuro), estadísticas y cerrar sesión. |
 | **Minijuegos** | *Despierta a Salva* y *Negocia con Vicente*: dan monedas y objetos. |
 | **Noticias** | Avisos del campus, de la más reciente a la más antigua. |
 
@@ -53,7 +53,7 @@ el jugador hace en un lado se ve en el otro.
 | Arquitectura | MVVM (ViewModel + StateFlow) con repositorios |
 | Inyección de dependencias | Hilt |
 | Navegación | Navigation Compose con rutas tipadas (`@Serializable`) |
-| Backend | Supabase (Auth + PostgREST) con `supabase-kt` 3.8 y Ktor/OkHttp |
+| Backend | Supabase (Auth + PostgREST + Storage) con `supabase-kt` 3.8 y Ktor/OkHttp |
 | Caché local | DataStore Preferences (JSON con kotlinx.serialization) |
 | Imágenes | Coil 3 |
 | Pruebas | JUnit 4 |
@@ -109,11 +109,15 @@ La app sigue tres capas. Cada una solo conoce a la de abajo:
 
 - **Repositorios** (`data/repository`): son la única puerta al servidor y a la caché.
   - `AuthRepository`: inicio de sesión, registro, recuperación de contraseña, restauración y cierre de sesión.
-  - `PlayerRepository`: descarga la foto del jugador, los minijuegos, las noticias y los catálogos, y los guarda.
+  - `PlayerRepository`: descarga la foto del jugador, su perfil (nombre y avatar), los minijuegos, las noticias y los catálogos, y los guarda.
+  - `ProfileRepository`: cambia el nombre de jugador y el avatar (precargado, foto propia o ninguno) y sube la foto a Storage.
   - `MinigameRepository`: llama a las funciones de los minijuegos.
   - `SettingsRepository`: preferencias del dispositivo (tema).
 - **Dominio** (`domain`): funciones puras que combinan la foto del jugador con los catálogos para
-  cada pantalla (`GameViews.kt`) y la lógica de los minijuegos (`SalvaGame`, `Negotiation`).
+  cada pantalla (`GameViews.kt`), la lógica de los minijuegos (`SalvaGame`, `Negotiation`), el
+  formato de `avatar_url` y la validación del nombre (`Profile.kt`) y el recorte de la foto de perfil (`AvatarImage.kt`).
+- **`data/AvatarImageProcessor.kt`**: prepara la foto elegida en la galería (rotación EXIF, recorte
+  cuadrado centrado, 512 × 512, WEBP calidad 85, menos de 1 MB).
 - **UI** (`ui`): cada pantalla tiene su `@Composable` y lee el estado de un ViewModel con
   `collectAsStateWithLifecycle()`. Las pantallas de solo lectura comparten `GameViewModel`.
 - **Plantillas** (`ui/templates/ScreenTemplates.kt`): todas las pantallas se arman sobre 4
@@ -143,7 +147,7 @@ app/src/main/java/com/laodisea/app/
     ├── navigation/AppNavHost.kt   # Splash → Login/Registro → Principal
     ├── main/MainScreen.kt         # Barra inferior y rutas de las 5 secciones
     ├── splash/ auth/ home/ news/ map/ backpack/ bestiary/
-    ├── minigames/ stats/ settings/ more/
+    ├── minigames/ stats/ settings/ more/ profile/
     ├── common/GameViewModel.kt    # ViewModel compartido de lectura
     ├── components/                # Tarjetas, barras, chips, barra superior e inferior
     ├── templates/                 # Las 4 plantillas de pantalla
@@ -253,9 +257,13 @@ Mapa
 Mochila ──► Detalle de objeto
         ──► Muestrario ──► Detalle de objeto
 Bestiario ──► Detalle de personaje
-Más ──► Ajustes y perfil
+Más ──► Perfil
+    ──► Ajustes
     ──► Estadísticas
 ```
+
+Tocar el avatar de la barra superior de **Inicio** cambia a la pestaña **Más** y abre **Perfil**
+(la barra inferior marca Más).
 
 Al terminar una partida, el juego se reemplaza por la pantalla de **Recompensa**; «atrás» regresa a la lista de minijuegos.
 
@@ -320,11 +328,24 @@ aliado, jefe). Los no descubiertos aparecen con candado y «???». Los secretos 
 desbloquearse. Al tocar uno descubierto se abre su detalle.
 
 ### Más
-Tarjeta de la cuenta (nombre y correo), acceso a **Ajustes y perfil** y a **Estadísticas**, botón
+Tarjeta de la cuenta (avatar, nombre y correo) que abre **Perfil**, acceso a **Ajustes** y a **Estadísticas**, botón
 **Cerrar sesión** y, al final, el logo pequeño con la versión de la app.
 
-### Ajustes y perfil
-- **Nombre de jugador**: mínimo 3 letras. Se guarda en el servidor y se ve también en el juego de PC.
+### Perfil
+- **Avatar** de 120 dp con el botón **Cambiar**, que abre una hoja con:
+  - los 8 avatares precargados en 4 columnas (el actual va marcado);
+  - **Subir foto de la galería**: abre el selector de fotos del sistema, la app recorta el cuadrado
+    central y muestra una vista previa con **Usar esta foto** antes de subirla;
+  - **Quitar foto** (solo si hay foto propia): vuelve al avatar de Víctor.
+- **Nombre de jugador**: mínimo 3 letras y máximo 24. Se guarda en el servidor y se ve también en el juego de PC.
+- **Correo**: solo lectura.
+
+Los avatares precargados están en una sola lista (`ui/components/AvatarPresets.kt`). Por ahora
+Víctor usa su cara y los demás (Salva, Juanma, Vicente, Boniel, Osiel, Elías y Toño) son un círculo
+de color con su inicial. Para poner el arte final basta con agregar el drawable a esa lista.
+Todas las pantallas dibujan el avatar con el mismo componente, `OdiseaAvatar`.
+
+### Ajustes
 - **Tema**: igual que el teléfono, claro u oscuro. Se guarda en el dispositivo.
 
 ---
@@ -377,7 +398,19 @@ Un solo proyecto de Supabase lo comparten el juego de PC y la app. Tiene tres es
 | `app.play_minigame_attempt(p_code, p_result)` | Registra una partida de Salva y da la recompensa. |
 | `app.start_negotiation()` / `app.make_offer(...)` | Negociación con Vicente. |
 
-Además, la app actualiza `players.display_name` directamente. Las políticas RLS solo permiten editar la fila propia.
+Además, la app lee y actualiza `players.display_name` y `players.avatar_url` directamente (el
+snapshot no trae el avatar). Las políticas RLS solo permiten leer y editar la fila propia.
+
+**Avatares** (migración `07_avatars_storage`)
+- `players.avatar_url` tiene un `CHECK` que solo acepta:
+  - `null`: sin avatar (la app muestra el de Víctor);
+  - `preset:<clave>`, con clave `^[a-z0-9_]{1,32}$`: avatar precargado;
+  - `<uid>/avatar.webp?v=<número>`: foto propia. El número cambia en cada subida para que la caché
+    de imágenes no muestre la foto anterior.
+- Bucket **público** `avatars` en Storage: máximo 1 MB, solo `image/webp`, `image/jpeg` o `image/png`.
+  Cada jugador solo puede subir o actualizar dentro de su carpeta `{auth.uid()}/`. No hay política
+  de borrado: la app siempre sobrescribe el mismo archivo (`upsert`).
+- La URL pública es `<SUPABASE_URL>/storage/v1/object/public/avatars/<uid>/avatar.webp?v=<número>`.
 
 **Seguridad en el servidor**
 - Toda función identifica al jugador con `auth.uid()` (el token de la sesión). Nunca recibe un id de jugador desde la app.
@@ -414,6 +447,8 @@ la siguiente sincronización.
 | `GameViewsTest` | Mapa, mochila, muestrario, bestiario y estadísticas. |
 | `SalvaGameTest` | Movimiento, aciertos, fallos, aceleración y fin de partida de Salva. |
 | `NegotiationTest` | Validación de ofertas, respuestas de Vicente y ánimo. |
+| `ProfileTest` | Lectura y escritura de `avatar_url`, URL pública de la foto y validación del nombre de jugador. |
+| `AvatarImageTest` | Recorte cuadrado centrado y submuestreo de la foto de perfil. |
 | `AuthValidationTest` | Código de recuperación (solo dígitos, exactamente 6) y reglas de la contraseña nueva. |
 
 **Pruebas de integración con Unity** (`tools/integration`):
@@ -448,6 +483,11 @@ la siguiente sincronización.
 - Las reglas sensibles (precio mínimo de Vicente, recompensas, intentos, saldo) **solo existen en
   el servidor**. Aunque alguien modifique la app, no puede darse monedas ni objetos.
 - La compilación de *release* activa la minificación (R8).
+- **Permisos**: solo `INTERNET` y `ACCESS_NETWORK_STATE`. Para la foto de perfil se usa el selector de
+  fotos del sistema (`PickVisualMedia`), que **no pide permisos** de almacenamiento ni de cámara: la
+  app solo recibe la foto que el jugador elige.
+- Las fotos de perfil están en un bucket público: cualquiera con la URL puede verlas, pero solo su
+  dueño puede reemplazarlas.
 
 ---
 
@@ -460,8 +500,11 @@ la siguiente sincronización.
 | 3 | Minijuegos: Despierta a Salva y Negocia con Vicente, pantalla de recompensa | ✅ |
 | 4 | Noticias del campus y pruebas de integración con Unity | ✅ |
 | UX docente, fase 1 | Logo nuevo (ícono, splash, sesión, Más) y recuperar contraseña con código de 6 dígitos | ✅ |
+| UX docente, fase 2 | Perfil con avatares (8 precargados y foto propia); Ajustes queda solo con el tema | ✅ |
 
 **Pendiente**
+- **Arte final de los avatares**: hoy, salvo Víctor, son círculos con la inicial. Basta con agregar
+  cada imagen en `ui/components/AvatarPresets.kt`.
 - **Plantilla de correo «Reset password» de Supabase** (Authentication → Email Templates): debe
   mostrar el código con `{{ .Token }}`. La plantilla por defecto solo trae el enlace
   (`{{ .ConfirmationURL }}`), y con ella al jugador no le llega ningún código que escribir en la app.

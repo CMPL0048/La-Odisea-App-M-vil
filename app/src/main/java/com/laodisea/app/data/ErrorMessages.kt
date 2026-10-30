@@ -21,6 +21,7 @@ fun Throwable.isEmailRateLimit(): Boolean {
 /** Traduce los errores de Supabase a un mensaje corto en español para el jugador. */
 fun Throwable.toUserMessage(): String {
     if (isNetworkError()) return "Sin conexión. Revisa tu internet e intenta de nuevo."
+    if (this is AvatarImageException) return message.orEmpty()
     val text = message.orEmpty()
     return when {
         text.contains("Invalid login credentials", ignoreCase = true) -> "Correo o contraseña incorrectos."
@@ -35,6 +36,9 @@ fun Throwable.toUserMessage(): String {
         isEmailRateLimit() -> "Espera un momento antes de pedir otro código."
         text.contains("same_password", ignoreCase = true) -> "La nueva contraseña debe ser distinta a la anterior."
         text.contains("rate limit", ignoreCase = true) -> "Demasiados intentos. Espera un momento."
+        // Storage rechaza archivos de más de 1 MB en el bucket de avatares.
+        text.contains("maximum allowed size", ignoreCase = true) || text.contains("Payload too large", ignoreCase = true) ->
+            "La foto es muy grande (máximo 1 MB)."
         text.contains("No autenticado", ignoreCase = true) || text.contains("JWT", ignoreCase = true) ->
             "Tu sesión expiró. Vuelve a iniciar sesión."
         // Mensajes que lanzan las funciones de minijuegos del servidor.

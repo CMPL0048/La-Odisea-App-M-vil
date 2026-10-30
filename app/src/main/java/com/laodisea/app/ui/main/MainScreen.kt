@@ -31,6 +31,7 @@ import com.laodisea.app.ui.minigames.SalvaScreen
 import com.laodisea.app.ui.minigames.VicenteScreen
 import com.laodisea.app.ui.more.MoreScreen
 import com.laodisea.app.ui.news.NewsScreen
+import com.laodisea.app.ui.profile.ProfileScreen
 import com.laodisea.app.ui.settings.SettingsScreen
 import com.laodisea.app.ui.stats.StatsScreen
 import kotlinx.serialization.Serializable
@@ -58,6 +59,7 @@ import kotlin.reflect.KClass
 @Serializable data class CharacterDetailRoute(val code: String)
 @Serializable data object MoreRoute
 @Serializable data object SettingsRoute
+@Serializable data object ProfileRoute
 @Serializable data object MoreStatsRoute
 
 private fun MainSection.graph(): Any = when (this) {
@@ -83,19 +85,16 @@ fun MainScreen(onSignedOut: () -> Unit) {
         hierarchy?.any { it.hasRoute(section.graphClass()) } == true
     } ?: MainSection.Inicio
 
+    val selectSection: (MainSection) -> Unit = { section ->
+        navController.navigate(section.graph()) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     Scaffold(
-        bottomBar = {
-            OdiseaBottomBar(
-                selected = selected,
-                onSelect = { section ->
-                    navController.navigate(section.graph()) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-            )
-        },
+        bottomBar = { OdiseaBottomBar(selected = selected, onSelect = selectSection) },
     ) { padding ->
         val back: () -> Unit = { navController.popBackStack() }
         NavHost(
@@ -109,6 +108,11 @@ fun MainScreen(onSignedOut: () -> Unit) {
                         onOpenStats = { navController.navigate(StatsRoute) },
                         onOpenMinigames = { navController.navigate(MinigamesRoute) },
                         onOpenNews = { navController.navigate(NewsRoute) },
+                        // El Perfil vive en la pestaña Más, así que la barra inferior marca Más.
+                        onOpenProfile = {
+                            selectSection(MainSection.Mas)
+                            navController.navigate(ProfileRoute) { launchSingleTop = true }
+                        },
                     )
                 }
                 composable<NewsRoute> { NewsScreen(onBack = back) }
@@ -171,10 +175,12 @@ fun MainScreen(onSignedOut: () -> Unit) {
                 composable<MoreRoute> {
                     MoreScreen(
                         onSignedOut = onSignedOut,
+                        onOpenProfile = { navController.navigate(ProfileRoute) },
                         onOpenSettings = { navController.navigate(SettingsRoute) },
                         onOpenStats = { navController.navigate(MoreStatsRoute) },
                     )
                 }
+                composable<ProfileRoute> { ProfileScreen(onBack = back) }
                 composable<SettingsRoute> { SettingsScreen(onBack = back) }
                 composable<MoreStatsRoute> { StatsScreen(onBack = back) }
             }

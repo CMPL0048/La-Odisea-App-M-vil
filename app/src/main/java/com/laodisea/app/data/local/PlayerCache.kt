@@ -39,6 +39,14 @@ class PlayerCache @Inject constructor(
         }
     }
 
+    /** Modifica la foto guardada (por ejemplo, el avatar recién cambiado). No hace nada si no hay caché. */
+    suspend fun updateHome(transform: (HomeData) -> HomeData) {
+        dataStore.edit { prefs ->
+            val current = prefs[HOME_DATA]?.let { decode(HomeData.serializer(), it) } ?: return@edit
+            prefs[HOME_DATA] = json.encodeToString(HomeData.serializer(), transform(current))
+        }
+    }
+
     suspend fun saveCatalog(data: CatalogData) {
         dataStore.edit { prefs -> prefs[CATALOG] = json.encodeToString(CatalogData.serializer(), data) }
     }

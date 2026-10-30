@@ -13,6 +13,8 @@ data class HomeData(
     val news: List<CampusNews> = emptyList(),
     /** Momento (epoch ms) en que se descargó del servidor. */
     val fetchedAt: Long = 0,
+    /** Nombre y avatar de `public.players`. Null en cachés guardadas antes de existir el perfil. */
+    val profile: PlayerProfile? = null,
 )
 
 /** Fila de app.minigames. */

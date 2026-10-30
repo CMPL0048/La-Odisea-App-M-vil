@@ -1,6 +1,8 @@
 package com.laodisea.app.ui.more
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -37,8 +39,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.laodisea.app.BuildConfig
 import com.laodisea.app.data.repository.AuthRepository
-import com.laodisea.app.data.repository.PlayerRepository
-import com.laodisea.app.ui.components.Avatar
+import com.laodisea.app.data.model.PlayerProfile
+import com.laodisea.app.data.repository.ProfileRepository
+import com.laodisea.app.ui.components.OdiseaAvatar
 import com.laodisea.app.ui.components.OdiseaCard
 import com.laodisea.app.ui.components.OdiseaTopBar
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,7 +49,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -54,10 +56,9 @@ import javax.inject.Inject
 @HiltViewModel
 class MoreViewModel @Inject constructor(
     private val auth: AuthRepository,
-    players: PlayerRepository,
+    profiles: ProfileRepository,
 ) : ViewModel() {
-    val displayName: StateFlow<String?> = players.cachedHome
-        .map { it?.snapshot?.player?.displayName }
+    val profile: StateFlow<PlayerProfile?> = profiles.profile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val email: String? get() = auth.currentEmail
@@ -76,11 +77,13 @@ class MoreViewModel @Inject constructor(
 @Composable
 fun MoreScreen(
     onSignedOut: () -> Unit,
+    onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenStats: () -> Unit,
     viewModel: MoreViewModel = hiltViewModel(),
 ) {
-    val name by viewModel.displayName.collectAsStateWithLifecycle()
+    val profile by viewModel.profile.collectAsStateWithLifecycle()
+    val name = profile?.displayName
     val signedOut by viewModel.signedOut.collectAsStateWithLifecycle()
     LaunchedEffect(signedOut) { if (signedOut) onSignedOut() }
 
@@ -92,9 +95,17 @@ fun MoreScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            OdiseaCard(title = "Tu cuenta", icon = Icons.Outlined.Person) {
+            // Toda la tarjeta de la cuenta abre el Perfil.
+            OdiseaCard(
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.large)
+                    .clickable(onClickLabel = "Abrir perfil", onClick = onOpenProfile),
+                title = "Tu cuenta",
+                icon = Icons.Outlined.Person,
+                trailing = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Avatar(name = name ?: "J", url = null, size = 48)
+                    OdiseaAvatar(avatarUrl = profile?.avatarUrl, displayName = name, size = 48.dp)
                     Column {
                         Text(name ?: "Jugador", style = MaterialTheme.typography.titleMedium)
                         viewModel.email?.let {
@@ -103,7 +114,7 @@ fun MoreScreen(
                     }
                 }
             }
-            MenuRow(Icons.Outlined.Settings, "Ajustes y perfil", "Nombre de jugador y tema claro u oscuro", onOpenSettings)
+            MenuRow(Icons.Outlined.Settings, "Ajustes", "Tema claro u oscuro", onOpenSettings)
             MenuRow(Icons.Outlined.QueryStats, "Estadísticas", "Todo tu avance en la odisea", onOpenStats)
             OutlinedButton(onClick = viewModel::signOut, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null)

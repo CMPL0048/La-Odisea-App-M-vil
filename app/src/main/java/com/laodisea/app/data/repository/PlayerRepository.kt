@@ -10,11 +10,13 @@ import com.laodisea.app.data.model.HomeData
 import com.laodisea.app.data.model.Minigame
 import com.laodisea.app.data.model.MinigameState
 import com.laodisea.app.data.model.MinigameStatus
+import com.laodisea.app.data.model.PlayerProfile
 import com.laodisea.app.data.model.PlayerSnapshot
 import com.laodisea.app.data.model.Zone
 import com.laodisea.app.data.toUserMessage
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.async
@@ -90,7 +92,8 @@ class PlayerRepository @Inject constructor(
         val snapshot = async { fetchSnapshot() }
         val minigames = async { fetchMinigames() }
         val news = async { runCatching { fetchNews() }.getOrNull() }
-        // Si fallan solo las noticias se conservan las que ya estaban guardadas.
+        val profile = async { runCatching { fetchProfile() }.getOrNull() }
+        // Si fallan solo las noticias o el perfil se conserva lo que ya estaba guardado.
         val newsList = news.await() ?: cache.read()?.news.orEmpty()
         val data = HomeData(
             snapshot = snapshot.await(),
@@ -98,6 +101,7 @@ class PlayerRepository @Inject constructor(
             latestNews = newsList.firstOrNull(),
             news = newsList,
             fetchedAt = System.currentTimeMillis(),
+            profile = profile.await() ?: cache.read()?.profile,
         )
         val owner = auth.currentUserId ?: data.snapshot.player?.id
         if (owner != null) cache.save(owner, data)
@@ -117,17 +121,16 @@ class PlayerRepository @Inject constructor(
         data
     }
 
-    /** Cambia el nombre de jugador (RLS solo deja editar la fila propia) y vuelve a sincronizar. */
-    suspend fun updateDisplayName(name: String) {
-        val uid = auth.currentUserId ?: error("No autenticado")
-        supabase.postgrest.from("players").update(buildJsonObject { put("display_name", name.trim()) }) {
-            filter { eq("id", uid) }
-        }
-        sync(waitIfBusy = true)
-    }
-
     private suspend fun fetchSnapshot(): PlayerSnapshot =
         supabase.postgrest.rpc(FN_SNAPSHOT).decodeAs<PlayerSnapshot>()
+
+    // get_player_snapshot no trae avatar_url, así que el perfil se lee de la fila propia de players.
+    private suspend fun fetchProfile(): PlayerProfile? {
+        val uid = auth.currentUserId ?: return null
+        return supabase.postgrest.from(TABLE_PLAYERS)
+            .select(Columns.list("display_name", "avatar_url")) { filter { eq("id", uid) } }
+            .decodeSingleOrNull<PlayerProfile>()
+    }
 
     private suspend fun fetchMinigames(): List<MinigameStatus> = coroutineScope {
         val catalog = supabase.postgrest.from(SCHEMA_APP, "minigames")
@@ -161,6 +164,7 @@ class PlayerRepository @Inject constructor(
 
     private companion object {
         const val SCHEMA_APP = "app"
+        const val TABLE_PLAYERS = "players"
         const val NEWS_LIMIT = 50L
         const val FN_SNAPSHOT = "get_player_snapshot"
         const val FN_MINIGAME_STATE = "get_minigame_state"

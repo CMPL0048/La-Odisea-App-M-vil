@@ -69,11 +69,12 @@ fun HomeScreen(
     onOpenStats: () -> Unit,
     onOpenMinigames: () -> Unit,
     onOpenNews: () -> Unit,
+    onOpenProfile: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snapshot = state.data?.snapshot
-    val name = snapshot?.player?.displayName ?: "Jugador"
+    val name = state.data?.profile?.displayName ?: snapshot?.player?.displayName ?: "Jugador"
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -81,8 +82,9 @@ fun HomeScreen(
             OdiseaTopBar(
                 title = name,
                 subtitle = snapshot?.stats?.let { "Nivel ${it.level}" },
-                avatarUrl = snapshot?.player?.avatarUrl,
+                avatarUrl = state.data?.profile?.avatarUrl,
                 showAvatar = true,
+                onAvatarClick = onOpenProfile,
                 coins = snapshot?.coins,
             )
         },

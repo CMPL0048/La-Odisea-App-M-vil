@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.laodisea.app.data.repository.AuthRepository
 import com.laodisea.app.data.repository.SignUpResult
 import com.laodisea.app.data.toUserMessage
+import com.laodisea.app.domain.displayNameError
+import com.laodisea.app.domain.limitDisplayName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,7 +75,7 @@ class RegisterViewModel @Inject constructor(
     private val _state = MutableStateFlow(RegisterUiState())
     val state: StateFlow<RegisterUiState> = _state.asStateFlow()
 
-    fun onDisplayNameChange(value: String) = _state.update { it.copy(displayName = value.take(24), error = null) }
+    fun onDisplayNameChange(value: String) = _state.update { it.copy(displayName = limitDisplayName(value), error = null) }
     fun onEmailChange(value: String) = _state.update { it.copy(email = value, error = null) }
     fun onPasswordChange(value: String) = _state.update { it.copy(password = value, error = null) }
     fun onConfirmPasswordChange(value: String) = _state.update { it.copy(confirmPassword = value, error = null) }
@@ -82,7 +84,7 @@ class RegisterViewModel @Inject constructor(
         val s = _state.value
         if (!s.canSubmit) return
         val error = when {
-            s.displayName.trim().length < 3 -> "El nombre de jugador debe tener al menos 3 letras."
+            displayNameError(s.displayName) != null -> displayNameError(s.displayName)
             !isValidEmail(s.email) -> "Escribe un correo válido."
             else -> newPasswordError(s.password, s.confirmPassword)
         }
