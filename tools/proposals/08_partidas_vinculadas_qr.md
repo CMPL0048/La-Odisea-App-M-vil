@@ -1,6 +1,6 @@
 # Migración 08: partidas vinculadas por QR (contrato)
 
-> **Estado: PROPUESTA, sin aplicar.** Está esperando la aprobación de Martin. La app ya está
+> **Estado: APROBADA por Martin (30 oct 2026), pendiente de aplicar.** La app ya está
 > programada contra este contrato. Mientras la migración no exista, la app sigue funcionando
 > como antes (ver «Compatibilidad»).
 
@@ -75,5 +75,5 @@ Minijuegos: `play_minigame_attempt` y `make_offer` mandan las monedas y los obje
 
 ## Pendiente en Supabase
 
-1. Aprobar y aplicar la migración 08.
-2. Activar **Allow anonymous sign-ins** (Authentication → Sign In / Providers).
+1. ~~Aprobar~~ (aprobada el 30 oct 2026) y aplicar la migración 08.
+2. ~~Activar **Allow anonymous sign-ins**~~ (activado el 30 oct 2026).

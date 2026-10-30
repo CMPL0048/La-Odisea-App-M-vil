@@ -560,10 +560,9 @@ la siguiente sincronización.
 | UX docente, fase 3 | Partidas vinculadas por QR (lado app), contra el contrato de la migración 08 | ✅ app / ⏳ servidor |
 
 **Pendiente**
-- **Aprobar y aplicar la migración 08** (partidas vinculadas por QR). Mientras tanto, la app usa
-  `get_player_snapshot` y oculta todo lo de partidas.
-- **Activar «Allow anonymous sign-ins»** en Supabase (Authentication → Sign In / Providers), para
-  que el juego de PC se pueda jugar sin cuenta.
+- **Aplicar la migración 08** (partidas vinculadas por QR): Martin la aprobó el 30 oct 2026. Hasta
+  que esté aplicada, la app usa `get_player_snapshot` y oculta todo lo de partidas.
+  «Allow anonymous sign-ins» ya está activado en Supabase (30 oct 2026).
 - **Unity**: sesión anónima, QR de vinculación, estado de vinculación y Realtime de premios (ver §12).
 - **Arte final de los avatares**: hoy, salvo Víctor, son círculos con la inicial. Basta con agregar
   cada imagen en `ui/components/AvatarPresets.kt`.
