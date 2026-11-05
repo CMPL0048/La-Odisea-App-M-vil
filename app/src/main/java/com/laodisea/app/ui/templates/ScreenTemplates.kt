@@ -1,7 +1,6 @@
 package com.laodisea.app.ui.templates
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.laodisea.app.data.repository.SyncStatus
+import com.laodisea.app.ui.components.LoadingPalette
+import com.laodisea.app.ui.components.OdiseaLoadingScreen
 import com.laodisea.app.ui.components.OdiseaTopBar
 import com.laodisea.app.ui.util.Formats
 
@@ -246,7 +246,7 @@ private fun ReadScaffold(
         ) {
             when {
                 status.hasData -> content()
-                !status.loaded || status.sync.refreshing -> CenteredLoading()
+                !status.loaded || status.sync.refreshing -> CenteredLoading(title)
                 else -> EmptyState(
                     message = status.sync.error ?: "Aún no hay datos guardados. Conéctate para descargarlos.",
                     onRetry = onRefresh,
@@ -257,8 +257,13 @@ private fun ReadScaffold(
 }
 
 @Composable
-fun CenteredLoading() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+fun CenteredLoading(sectionTitle: String? = null) {
+    OdiseaLoadingScreen(
+        message = if (sectionTitle != null) "Cargando $sectionTitle…" else "Sincronizando…",
+        subtitle = "Consultando tu avance en La Odisea",
+        palette = LoadingPalette.Seccion,
+        compact = true,
+    )
 }
 
 @Composable

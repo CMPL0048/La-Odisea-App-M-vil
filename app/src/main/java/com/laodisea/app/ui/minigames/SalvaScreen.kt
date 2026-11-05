@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -51,11 +53,14 @@ import com.laodisea.app.data.repository.MinigameReward
 import com.laodisea.app.domain.minigames.SalvaGame
 import com.laodisea.app.ui.auth.ErrorText
 import com.laodisea.app.ui.auth.PrimaryButton
+import com.laodisea.app.ui.components.LoadingPalette
 import com.laodisea.app.ui.components.OdiseaCard
+import com.laodisea.app.ui.components.OdiseaLoadingOverlay
 import com.laodisea.app.ui.templates.MinigameScreenTemplate
 import com.laodisea.app.ui.theme.BosqueProfundo
 import com.laodisea.app.ui.theme.OroMoneda
 import com.laodisea.app.ui.theme.Vida
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 @Composable
@@ -70,6 +75,14 @@ fun SalvaScreen(
     val game = state.game
     val playing = game.phase == SalvaGame.Phase.Jugando
     var confirmExit by remember { mutableStateOf(false) }
+    var preparing by rememberSaveable { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        if (preparing) {
+            delay(650)
+            preparing = false
+        }
+    }
 
     LaunchedEffect(state.reward) { state.reward?.let(onFinished) }
 
@@ -98,22 +111,30 @@ fun SalvaScreen(
         )
     }
 
-    MinigameScreenTemplate(
-        title = "Despierta a Salva",
-        onBack = { if (playing) confirmExit = true else if (!state.submitting) onBack() },
-        coins = coins,
-        attemptsRemaining = status?.attemptsRemaining,
-        attemptsTotal = status?.attemptsPerCycle,
-    ) {
-        SalvaPortrait(game)
-        when (game.phase) {
-            SalvaGame.Phase.Listo -> Intro(
-                canPlay = (status?.attemptsRemaining ?: 0) > 0,
-                onStart = viewModel::start,
-            )
-            SalvaGame.Phase.Jugando -> PlayArea(game, onTap = viewModel::tap)
-            else -> Submitting(state, onRetry = viewModel::submit)
+    Box(Modifier.fillMaxSize()) {
+        MinigameScreenTemplate(
+            title = "Despierta a Salva",
+            onBack = { if (playing) confirmExit = true else if (!state.submitting) onBack() },
+            coins = coins,
+            attemptsRemaining = status?.attemptsRemaining,
+            attemptsTotal = status?.attemptsPerCycle,
+        ) {
+            SalvaPortrait(game)
+            when (game.phase) {
+                SalvaGame.Phase.Listo -> Intro(
+                    canPlay = (status?.attemptsRemaining ?: 0) > 0,
+                    onStart = viewModel::start,
+                )
+                SalvaGame.Phase.Jugando -> PlayArea(game, onTap = viewModel::tap)
+                else -> Submitting(state, onRetry = viewModel::submit)
+            }
         }
+        OdiseaLoadingOverlay(
+            visible = preparing,
+            message = "Despierta a Salva",
+            subtitle = "Preparando el intento…",
+            palette = LoadingPalette.Minijuego,
+        )
     }
 }
 

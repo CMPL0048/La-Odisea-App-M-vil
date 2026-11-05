@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +26,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,7 +42,9 @@ import com.laodisea.app.domain.minigames.Mood
 import com.laodisea.app.domain.minigames.Negotiation
 import com.laodisea.app.ui.auth.ErrorText
 import com.laodisea.app.ui.auth.PrimaryButton
+import com.laodisea.app.ui.components.LoadingPalette
 import com.laodisea.app.ui.components.OdiseaCard
+import com.laodisea.app.ui.components.OdiseaLoadingOverlay
 import com.laodisea.app.ui.components.StatBar
 import com.laodisea.app.ui.templates.MinigameScreenTemplate
 import com.laodisea.app.ui.theme.NocheAzul
@@ -46,6 +52,7 @@ import com.laodisea.app.ui.theme.OroMoneda
 import com.laodisea.app.ui.theme.Resistencia
 import com.laodisea.app.ui.theme.Vida
 import com.laodisea.app.ui.util.GameLabels
+import kotlinx.coroutines.delay
 
 @Composable
 fun VicenteScreen(
@@ -55,45 +62,60 @@ fun VicenteScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val ctx by viewModel.context.collectAsStateWithLifecycle()
+    var preparing by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        if (preparing) {
+            delay(650)
+            preparing = false
+        }
+    }
     LaunchedEffect(state.reward) { state.reward?.let(onFinished) }
 
-    MinigameScreenTemplate(
-        title = "Negocia con Vicente",
-        onBack = onBack,
-        coins = ctx.coins,
-        attemptsRemaining = ctx.status?.attemptsRemaining,
-        attemptsTotal = ctx.status?.attemptsPerCycle,
-    ) {
-        Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+    Box(Modifier.fillMaxSize()) {
+        MinigameScreenTemplate(
+            title = "Negocia con Vicente",
+            onBack = onBack,
+            coins = ctx.coins,
+            attemptsRemaining = ctx.status?.attemptsRemaining,
+            attemptsTotal = ctx.status?.attemptsPerCycle,
         ) {
-            val negotiation = state.negotiation
-            VicenteHeader(negotiation?.mood ?: Mood.Tranquilo)
-            if (negotiation == null) {
-                Intro(
-                    canPlay = (ctx.status?.attemptsRemaining ?: 0) > 0,
-                    busy = state.busy,
-                    error = state.error,
-                    onStart = viewModel::start,
-                )
-            } else {
-                val item = ctx.items[negotiation.itemCode]
-                ItemOnSale(negotiation, item?.name ?: negotiation.itemCode)
-                PatienceCard(negotiation)
-                if (negotiation.history.isNotEmpty()) History(negotiation)
-                OfferForm(
-                    negotiation = negotiation,
-                    coins = ctx.coins,
-                    offerText = state.offerText,
-                    busy = state.busy,
-                    error = state.error,
-                    onChange = viewModel::onOfferChange,
-                    onSuggestion = viewModel::useSuggestion,
-                    onSend = viewModel::sendOffer,
-                )
+            Column(
+                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                val negotiation = state.negotiation
+                VicenteHeader(negotiation?.mood ?: Mood.Tranquilo)
+                if (negotiation == null) {
+                    Intro(
+                        canPlay = (ctx.status?.attemptsRemaining ?: 0) > 0,
+                        busy = state.busy,
+                        error = state.error,
+                        onStart = viewModel::start,
+                    )
+                } else {
+                    val item = ctx.items[negotiation.itemCode]
+                    ItemOnSale(negotiation, item?.name ?: negotiation.itemCode)
+                    PatienceCard(negotiation)
+                    if (negotiation.history.isNotEmpty()) History(negotiation)
+                    OfferForm(
+                        negotiation = negotiation,
+                        coins = ctx.coins,
+                        offerText = state.offerText,
+                        busy = state.busy,
+                        error = state.error,
+                        onChange = viewModel::onOfferChange,
+                        onSuggestion = viewModel::useSuggestion,
+                        onSend = viewModel::sendOffer,
+                    )
+                }
             }
         }
+        OdiseaLoadingOverlay(
+            visible = preparing,
+            message = "Negocia con Vicente",
+            subtitle = "Buscando a Vicente en el campus…",
+            palette = LoadingPalette.Minijuego,
+        )
     }
 }
 

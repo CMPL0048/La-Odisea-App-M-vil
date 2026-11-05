@@ -19,6 +19,21 @@ fun Throwable.isEmailRateLimit(): Boolean {
 }
 
 /**
+ * ¿Supabase rechazó enviar el correo por configuración o por la restricción del SMTP gratuito?
+ * Sin un SMTP propio, el plan gratuito solo envía correos a miembros del equipo de la organización.
+ */
+fun Throwable.isEmailDeliveryBlocked(): Boolean {
+    val text = message.orEmpty()
+    return text.contains("email_address_not_authorized", ignoreCase = true) ||
+        text.contains("not authorized", ignoreCase = true) ||
+        text.contains("Error sending recovery email", ignoreCase = true) ||
+        text.contains("Error sending email", ignoreCase = true) ||
+        text.contains("Unable to send email", ignoreCase = true) ||
+        text.contains("otp_disabled", ignoreCase = true) ||
+        text.contains("email_provider_disabled", ignoreCase = true)
+}
+
+/**
  * ¿El servidor respondió que la función no existe? (PostgREST PGRST202 o Postgres 42883.)
  * Sirve para seguir funcionando con un servidor que aún no tiene la migración de partidas.
  */
@@ -52,14 +67,26 @@ fun Throwable.toUserMessage(): String {
         text.contains("Invalid login credentials", ignoreCase = true) -> "Correo o contraseña incorrectos."
         text.contains("Email not confirmed", ignoreCase = true) -> "Confirma tu correo antes de iniciar sesión."
         text.contains("already registered", ignoreCase = true) -> "Ya existe una cuenta con ese correo."
+        text.contains("same_password", ignoreCase = true) ||
+            text.contains("different from the old password", ignoreCase = true) ->
+            "La nueva contraseña debe ser distinta a la anterior."
         text.contains("Password should be", ignoreCase = true) -> "La contraseña debe tener al menos 6 caracteres."
         text.contains("valid email", ignoreCase = true) || text.contains("invalid format", ignoreCase = true) ->
             "Escribe un correo válido."
         // Recuperación de contraseña con código de 6 dígitos.
         text.contains("otp_expired", ignoreCase = true) || text.contains("expired or is invalid", ignoreCase = true) ->
             "El código no es válido o ya caducó. Pide uno nuevo."
+        text.contains("email_address_not_authorized", ignoreCase = true) ||
+            text.contains("not authorized", ignoreCase = true) ->
+            "Supabase no autoriza envíos a este correo en el plan gratuito (agrégalo al equipo o configura SMTP)."
+        text.contains("Error sending recovery email", ignoreCase = true) ||
+            text.contains("Error sending email", ignoreCase = true) ||
+            text.contains("Unable to send email", ignoreCase = true) ->
+            "No se pudo enviar el correo de recuperación. Revisa la configuración de correo en Supabase."
+        text.contains("otp_disabled", ignoreCase = true) ||
+            text.contains("email_provider_disabled", ignoreCase = true) ->
+            "La recuperación por correo está desactivada en Supabase."
         isEmailRateLimit() -> "Espera un momento antes de pedir otro código."
-        text.contains("same_password", ignoreCase = true) -> "La nueva contraseña debe ser distinta a la anterior."
         text.contains("rate limit", ignoreCase = true) -> "Demasiados intentos. Espera un momento."
         // Storage rechaza archivos de más de 1 MB en el bucket de avatares.
         text.contains("maximum allowed size", ignoreCase = true) || text.contains("Payload too large", ignoreCase = true) ->

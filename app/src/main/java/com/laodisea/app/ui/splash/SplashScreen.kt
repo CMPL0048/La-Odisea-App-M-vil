@@ -1,32 +1,16 @@
 package com.laodisea.app.ui.splash
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import com.laodisea.app.R
 import com.laodisea.app.data.repository.AuthRepository
 import com.laodisea.app.data.repository.SessionState
-import com.laodisea.app.ui.theme.BosqueProfundo
-import com.laodisea.app.ui.theme.OroMoneda
-import com.laodisea.app.ui.theme.Papel
+import com.laodisea.app.ui.components.LoadingPalette
+import com.laodisea.app.ui.components.OdiseaLoadingScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,22 +50,9 @@ fun SplashScreen(
             null -> Unit
         }
     }
-    Box(
-        modifier = Modifier.fillMaxSize().background(BosqueProfundo),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            // El logo ya trae el nombre, así que solo va el lema debajo.
-            Image(
-                painter = painterResource(R.drawable.logo_odisea),
-                contentDescription = "Logo de La Odisea",
-                modifier = Modifier.size(200.dp),
-            )
-            Text("Una aventura por los campus de Nayarit", style = MaterialTheme.typography.bodyMedium, color = Papel)
-            CircularProgressIndicator(color = OroMoneda, strokeWidth = 3.dp, modifier = Modifier.size(28.dp))
-        }
-    }
+    // El logo ya trae el nombre, así que solo va el lema debajo con la paleta Bosque inicial.
+    OdiseaLoadingScreen(
+        message = "Una aventura por los campus de Nayarit",
+        palette = LoadingPalette.Bosque,
+    )
 }

@@ -3,6 +3,7 @@ package com.laodisea.app.ui.auth
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.laodisea.app.data.isEmailDeliveryBlocked
 import com.laodisea.app.data.isEmailRateLimit
 import com.laodisea.app.data.isNetworkError
 import com.laodisea.app.data.repository.AuthRepository
@@ -24,10 +25,11 @@ const val RESET_CODE_SENT_MESSAGE = "Si el correo está registrado, te enviamos 
 private const val RESEND_SECONDS = 60
 
 /**
- * Solo la falta de red o el límite de envíos se le muestran al jugador. Cualquier otro error se trata
- * como enviado, porque decir «ese correo no existe» revelaría qué cuentas hay.
+ * Solo la falta de red, el límite de envíos o un bloqueo del servidor de correo se le muestran al
+ * jugador. Cualquier otro error se trata como enviado para no revelar qué cuentas están registradas.
  */
-private fun Throwable.blocksCodeSending() = isNetworkError() || isEmailRateLimit()
+internal fun Throwable.blocksCodeSending() =
+    isNetworkError() || isEmailRateLimit() || isEmailDeliveryBlocked()
 
 data class ForgotPasswordUiState(
     val email: String = "",

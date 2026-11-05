@@ -10,6 +10,8 @@ import com.laodisea.app.domain.MAX_SAVES
 import com.laodisea.app.domain.parseLinkCode
 import com.laodisea.app.domain.saveNameError
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +23,8 @@ import javax.inject.Inject
 
 data class SavesUiState(
     val busy: Boolean = false,
+    /** Mensaje para la pantalla de carga completa al cambiar o actualizar la partida activa. */
+    val loadingMessage: String? = null,
     /** Error general de la sección (cambiar, renombrar, desvincular, escáner). */
     val error: String? = null,
     /** Error dentro del diálogo «Escribir código». */
@@ -49,7 +53,10 @@ class SavesViewModel @Inject constructor(
 
     fun activate(save: SaveSummary) {
         if (save.isActive) return
-        run(onSuccess = { it.copy(message = "Ahora ves: ${save.name}") }) { saves.setActive(save.saveId) }
+        run(
+            loadingMessage = "Cambiando a ${save.name}…",
+            onSuccess = { it.copy(message = "Ahora ves: ${save.name}") },
+        ) { saves.setActive(save.saveId) }
     }
 
     fun rename(save: SaveSummary, name: String) {
@@ -64,7 +71,10 @@ class SavesViewModel @Inject constructor(
     }
 
     fun unlink(save: SaveSummary) {
-        run(onSuccess = { it.copy(message = "Se desvinculó ${save.name}") }) { saves.unlink(save.saveId) }
+        run(
+            loadingMessage = "Desvinculando ${save.name}…",
+            onSuccess = { it.copy(message = "Se desvinculó ${save.name}") },
+        ) { saves.unlink(save.saveId) }
     }
 
     /** Vincula con lo escaneado o escrito; [fromDialog] decide dónde se muestra el error. */
@@ -74,6 +84,7 @@ class SavesViewModel @Inject constructor(
                 if (fromDialog) it.copy(codeError = parsed.message) else it.copy(error = parsed.message)
             }
             is LinkCodeResult.Valid -> run(
+                loadingMessage = if (fromDialog) null else "Vinculando partida…",
                 onSuccess = { it },
                 onError = { s, message -> if (fromDialog) s.copy(codeError = message) else s.copy(error = message) },
             ) {
@@ -90,16 +101,29 @@ class SavesViewModel @Inject constructor(
     fun onDialogDoneHandled() = _state.update { it.copy(dialogDone = false) }
 
     private fun run(
+        loadingMessage: String? = null,
         onSuccess: (SavesUiState) -> SavesUiState,
         onError: (SavesUiState, String) -> SavesUiState = { s, message -> s.copy(error = message) },
         action: suspend () -> Unit,
     ) {
         if (_state.value.busy) return
-        _state.update { it.copy(busy = true, error = null, codeError = null, renameError = null) }
+        _state.update {
+            it.copy(busy = true, loadingMessage = loadingMessage, error = null, codeError = null, renameError = null)
+        }
         viewModelScope.launch {
-            runCatching { action() }
-                .onSuccess { _state.update { onSuccess(it.copy(busy = false)) } }
-                .onFailure { e -> _state.update { onError(it.copy(busy = false), e.toUserMessage()) } }
+            runCatching {
+                if (loadingMessage != null) {
+                    coroutineScope {
+                        val minimum = launch { delay(650) }
+                        action()
+                        minimum.join()
+                    }
+                } else {
+                    action()
+                }
+            }
+                .onSuccess { _state.update { onSuccess(it.copy(busy = false, loadingMessage = null)) } }
+                .onFailure { e -> _state.update { onError(it.copy(busy = false, loadingMessage = null), e.toUserMessage()) } }
         }
     }
 }

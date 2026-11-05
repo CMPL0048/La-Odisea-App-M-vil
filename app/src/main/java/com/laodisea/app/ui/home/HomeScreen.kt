@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Explore
@@ -26,7 +26,6 @@ import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -40,6 +39,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,9 +57,14 @@ import com.laodisea.app.data.model.HomeData
 import com.laodisea.app.data.model.MinigameStatus
 import com.laodisea.app.data.model.PlayerSnapshot
 import com.laodisea.app.ui.components.AttemptDots
+import com.laodisea.app.ui.components.LoadingPalette
 import com.laodisea.app.ui.components.OdiseaCard
+import com.laodisea.app.ui.components.OdiseaLoadingOverlay
+import com.laodisea.app.ui.components.OdiseaLoadingScreen
 import com.laodisea.app.ui.components.OdiseaTopBar
 import com.laodisea.app.ui.components.StatBar
+import com.laodisea.app.ui.profile.SavePickerSheet
+import com.laodisea.app.ui.profile.SavesViewModel
 import com.laodisea.app.ui.templates.ScreenStatus
 import com.laodisea.app.ui.templates.SyncBanner
 import com.laodisea.app.ui.theme.BosqueProfundo
@@ -67,8 +72,6 @@ import com.laodisea.app.ui.theme.Papel
 import com.laodisea.app.ui.theme.Resistencia
 import com.laodisea.app.ui.theme.Vida
 import com.laodisea.app.ui.util.Formats
-import com.laodisea.app.ui.profile.SavePickerSheet
-import com.laodisea.app.ui.profile.SavesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +87,9 @@ fun HomeScreen(
     val saves by savesViewModel.list.collectAsStateWithLifecycle()
     val savesState by savesViewModel.state.collectAsStateWithLifecycle()
     var showSaves by rememberSaveable { mutableStateOf(false) }
+    var lastSaveMessage by remember { mutableStateOf("Cambiando de partida…") }
+    savesState.loadingMessage?.let { lastSaveMessage = it }
+
     val snapshot = state.data?.snapshot
     val name = state.data?.profile?.displayName ?: snapshot?.player?.displayName ?: "Jugador"
 
@@ -100,19 +106,31 @@ fun HomeScreen(
             )
         },
     ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = state.refreshing && state.data != null,
-            onRefresh = viewModel::refresh,
-            modifier = Modifier.fillMaxSize().padding(padding),
-        ) {
-            val data = state.data
-            when {
-                data != null -> HomeContent(data, state, onOpenStats, onOpenMinigames, onOpenNews, onOpenSaves = { showSaves = true })
-                state.refreshing -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            PullToRefreshBox(
+                isRefreshing = state.refreshing && state.data != null,
+                onRefresh = viewModel::refresh,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                val data = state.data
+                when {
+                    data != null -> HomeContent(data, state, onOpenStats, onOpenMinigames, onOpenNews, onOpenSaves = { showSaves = true })
+                    state.refreshing -> OdiseaLoadingScreen(
+                        message = "Sincronizando con el campus…",
+                        subtitle = "Descargando el estado de tu partida",
+                        palette = LoadingPalette.Seccion,
+                        compact = true,
+                    )
+                    else -> HomeError(message = state.error ?: "No se pudo cargar tu partida.", onRetry = viewModel::refresh)
                 }
-                else -> HomeError(message = state.error ?: "No se pudo cargar tu partida.", onRetry = viewModel::refresh)
             }
+            OdiseaLoadingOverlay(
+                visible = savesState.loadingMessage != null,
+                message = lastSaveMessage,
+                subtitle = "Sincronizando progreso y recompensas",
+                palette = LoadingPalette.Travesia,
+                compact = true,
+            )
         }
     }
     if (showSaves) {

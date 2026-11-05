@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -30,9 +31,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,8 +59,10 @@ import com.laodisea.app.ui.auth.AuthTextField
 import com.laodisea.app.ui.auth.ErrorText
 import com.laodisea.app.ui.auth.PrimaryButton
 import com.laodisea.app.ui.components.AvatarPresets
+import com.laodisea.app.ui.components.LoadingPalette
 import com.laodisea.app.ui.components.OdiseaAvatar
 import com.laodisea.app.ui.components.OdiseaCard
+import com.laodisea.app.ui.components.OdiseaLoadingOverlay
 import com.laodisea.app.ui.components.PresetAvatar
 import com.laodisea.app.ui.templates.FormScreenTemplate
 
@@ -73,6 +76,9 @@ fun ProfileScreen(
     val saves by savesViewModel.list.collectAsStateWithLifecycle()
     val savesState by savesViewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    var lastSaveMessage by remember { mutableStateOf("Actualizando partida…") }
+    savesState.loadingMessage?.let { lastSaveMessage = it }
+
     LaunchedEffect(savesState.message) {
         savesState.message?.let {
             snackbar.showSnackbar(it)
@@ -90,57 +96,66 @@ fun ProfileScreen(
         }
     }
 
-    FormScreenTemplate(title = "Perfil", onBack = onBack, snackbarHostState = snackbar) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                OdiseaAvatar(avatarUrl = avatarUrl, displayName = profile?.displayName, size = 120.dp)
-                if (state.avatarBusy) CircularProgressIndicator(modifier = Modifier.size(48.dp))
+    Box(Modifier.fillMaxSize()) {
+        FormScreenTemplate(title = "Perfil", onBack = onBack, snackbarHostState = snackbar) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    OdiseaAvatar(avatarUrl = avatarUrl, displayName = profile?.displayName, size = 120.dp)
+                    if (state.avatarBusy) CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                }
+                OutlinedButton(onClick = { showPicker = true }, enabled = !state.avatarBusy) {
+                    Icon(Icons.Outlined.Edit, contentDescription = null)
+                    Text("Cambiar", modifier = Modifier.padding(start = 8.dp))
+                }
             }
-            OutlinedButton(onClick = { showPicker = true }, enabled = !state.avatarBusy) {
-                Icon(Icons.Outlined.Edit, contentDescription = null)
-                Text("Cambiar", modifier = Modifier.padding(start = 8.dp))
+            ErrorText(state.avatarError)
+            OdiseaCard(title = "Nombre de jugador", icon = Icons.Outlined.Person) {
+                AuthTextField(
+                    value = state.displayName,
+                    onValueChange = viewModel::onNameChange,
+                    label = "Nombre de jugador",
+                    enabled = !state.savingName,
+                    imeAction = ImeAction.Done,
+                    onDone = viewModel::saveName,
+                )
+                Text(
+                    "Así te verán en la app y en el juego de PC.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                ErrorText(state.nameError)
+                if (state.nameSaved) {
+                    Text("Nombre guardado.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                }
+                PrimaryButton(
+                    text = "Guardar nombre",
+                    onClick = viewModel::saveName,
+                    enabled = viewModel.canSaveName,
+                    loading = state.savingName,
+                )
             }
-        }
-        ErrorText(state.avatarError)
-        OdiseaCard(title = "Nombre de jugador", icon = Icons.Outlined.Person) {
-            AuthTextField(
-                value = state.displayName,
-                onValueChange = viewModel::onNameChange,
-                label = "Nombre de jugador",
-                enabled = !state.savingName,
-                imeAction = ImeAction.Done,
-                onDone = viewModel::saveName,
-            )
-            Text(
-                "Así te verán en la app y en el juego de PC.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            ErrorText(state.nameError)
-            if (state.nameSaved) {
-                Text("Nombre guardado.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            OdiseaCard(title = "Correo", icon = Icons.Outlined.Email) {
+                Text(viewModel.email ?: "Sin correo", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Es el correo con el que entras a la app y al juego de PC.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            PrimaryButton(
-                text = "Guardar nombre",
-                onClick = viewModel::saveName,
-                enabled = viewModel.canSaveName,
-                loading = state.savingName,
-            )
+            // Sin la migración 08 en el servidor no hay lista: la sección no aparece.
+            if (saves.isNotEmpty()) SavesSection(saves = saves, state = savesState, viewModel = savesViewModel)
         }
-        OdiseaCard(title = "Correo", icon = Icons.Outlined.Email) {
-            Text(viewModel.email ?: "Sin correo", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                "Es el correo con el que entras a la app y al juego de PC.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        // Sin la migración 08 en el servidor no hay lista: la sección no aparece.
-        if (saves.isNotEmpty()) SavesSection(saves = saves, state = savesState, viewModel = savesViewModel)
+        OdiseaLoadingOverlay(
+            visible = savesState.loadingMessage != null,
+            message = lastSaveMessage,
+            subtitle = "Sincronizando progreso y recompensas",
+            palette = LoadingPalette.Travesia,
+            compact = true,
+        )
     }
 
     if (showPicker) {
